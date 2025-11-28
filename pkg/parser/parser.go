@@ -842,13 +842,238 @@ func (p *Parser) isInfixOperator(tokenType lexer.TokenType) bool {
 
 // Stub implementations for other statement types
 func (p *Parser) parseInsertStatement() (*InsertStatement, error) {
-	return nil, fmt.Errorf("INSERT statement parsing not implemented yet")
+	stmt := &InsertStatement{}
+
+	if !p.curTokenIs(lexer.INSERT) {
+		return nil, fmt.Errorf("expected INSERT, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Expect INTO keyword
+	if !p.curTokenIs(lexer.INTO) {
+		return nil, fmt.Errorf("expected INTO after INSERT, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse table name
+	table, err := p.parseTableReference()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse table name: %v", err)
+	}
+	stmt.Table = *table
+
+	// Optional: column list (col1, col2, ...)
+	if p.curTokenIs(lexer.LPAREN) {
+		p.nextToken()
+
+		// Check if it's a column list or VALUES
+		if p.curTokenIs(lexer.IDENT) {
+			// Parse column list
+			for {
+				if !p.curTokenIs(lexer.IDENT) {
+					return nil, fmt.Errorf("expected column name, got %s", p.curToken.Literal)
+				}
+				stmt.Columns = append(stmt.Columns, p.curToken.Literal)
+				p.nextToken()
+
+				if !p.curTokenIs(lexer.COMMA) {
+					break
+				}
+				p.nextToken() // consume comma
+			}
+
+			if !p.curTokenIs(lexer.RPAREN) {
+				return nil, fmt.Errorf("expected ')' after column list, got %s", p.curToken.Literal)
+			}
+			p.nextToken()
+		}
+	}
+
+	// VALUES or SELECT
+	if p.curTokenIs(lexer.VALUES) {
+		p.nextToken()
+
+		// Parse VALUES rows: (val1, val2, ...), (val3, val4, ...)
+		for {
+			if !p.curTokenIs(lexer.LPAREN) {
+				return nil, fmt.Errorf("expected '(' for VALUES row, got %s", p.curToken.Literal)
+			}
+			p.nextToken()
+
+			var row []Expression
+			for {
+				expr, err := p.parseExpression()
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse value: %v", err)
+				}
+				row = append(row, expr)
+
+				if !p.curTokenIs(lexer.COMMA) {
+					break
+				}
+				p.nextToken() // consume comma
+			}
+
+			if !p.curTokenIs(lexer.RPAREN) {
+				return nil, fmt.Errorf("expected ')' after VALUES row, got %s", p.curToken.Literal)
+			}
+			p.nextToken()
+
+			stmt.Values = append(stmt.Values, row)
+
+			// Check for more rows
+			if !p.curTokenIs(lexer.COMMA) {
+				break
+			}
+			p.nextToken() // consume comma between rows
+		}
+	} else if p.curTokenIs(lexer.SELECT) {
+		// INSERT INTO ... SELECT
+		selectStmt, err := p.parseSelectStatement()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse SELECT in INSERT: %v", err)
+		}
+		stmt.Select = selectStmt
+	} else {
+		return nil, fmt.Errorf("expected VALUES or SELECT after table name, got %s", p.curToken.Literal)
+	}
+
+	return stmt, nil
 }
 
 func (p *Parser) parseUpdateStatement() (*UpdateStatement, error) {
-	return nil, fmt.Errorf("UPDATE statement parsing not implemented yet")
+	stmt := &UpdateStatement{}
+
+	if !p.curTokenIs(lexer.UPDATE) {
+		return nil, fmt.Errorf("expected UPDATE, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse table name
+	table, err := p.parseTableReference()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse table name: %v", err)
+	}
+	stmt.Table = *table
+
+	// Expect SET keyword
+	if !p.curTokenIs(lexer.SET) {
+		return nil, fmt.Errorf("expected SET after table name, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse SET assignments: col1 = val1, col2 = val2, ...
+	for {
+		if !p.curTokenIs(lexer.IDENT) {
+			return nil, fmt.Errorf("expected column name in SET clause, got %s", p.curToken.Literal)
+		}
+
+		assignment := &Assignment{
+			Column: p.curToken.Literal,
+		}
+		p.nextToken()
+
+		// Expect = operator
+		if !p.curTokenIs(lexer.ASSIGN) {
+			return nil, fmt.Errorf("expected '=' after column name, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+
+		// Parse value expression
+		value, err := p.parseExpression()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse value in SET clause: %v", err)
+		}
+		assignment.Value = value
+
+		stmt.Set = append(stmt.Set, assignment)
+
+		// Check for more assignments
+		if !p.curTokenIs(lexer.COMMA) {
+			break
+		}
+		p.nextToken() // consume comma
+	}
+
+	// Optional: WHERE clause
+	if p.curTokenIs(lexer.WHERE) {
+		p.nextToken()
+		where, err := p.parseExpression()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse WHERE clause: %v", err)
+		}
+		stmt.Where = where
+	}
+
+	// Optional: ORDER BY clause (MySQL/SQLite)
+	if p.curTokenIs(lexer.ORDER) {
+		orderBy, err := p.parseOrderByClause()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse ORDER BY: %v", err)
+		}
+		stmt.OrderBy = orderBy
+	}
+
+	// Optional: LIMIT clause (MySQL/SQLite)
+	if p.curTokenIs(lexer.LIMIT) {
+		limit, err := p.parseLimitClause()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse LIMIT: %v", err)
+		}
+		stmt.Limit = limit
+	}
+
+	return stmt, nil
 }
 
 func (p *Parser) parseDeleteStatement() (*DeleteStatement, error) {
-	return nil, fmt.Errorf("DELETE statement parsing not implemented yet")
+	stmt := &DeleteStatement{}
+
+	if !p.curTokenIs(lexer.DELETE) {
+		return nil, fmt.Errorf("expected DELETE, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Expect FROM keyword
+	if !p.curTokenIs(lexer.FROM) {
+		return nil, fmt.Errorf("expected FROM after DELETE, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse table name
+	table, err := p.parseTableReference()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse table name: %v", err)
+	}
+	stmt.From = *table
+
+	// Optional: WHERE clause
+	if p.curTokenIs(lexer.WHERE) {
+		p.nextToken()
+		where, err := p.parseExpression()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse WHERE clause: %v", err)
+		}
+		stmt.Where = where
+	}
+
+	// Optional: ORDER BY clause (MySQL/SQLite)
+	if p.curTokenIs(lexer.ORDER) {
+		orderBy, err := p.parseOrderByClause()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse ORDER BY: %v", err)
+		}
+		stmt.OrderBy = orderBy
+	}
+
+	// Optional: LIMIT clause (MySQL/SQLite)
+	if p.curTokenIs(lexer.LIMIT) {
+		limit, err := p.parseLimitClause()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse LIMIT: %v", err)
+		}
+		stmt.Limit = limit
+	}
+
+	return stmt, nil
 }

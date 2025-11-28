@@ -204,25 +204,35 @@ func (lc *LimitClause) String() string { return fmt.Sprintf("LIMIT %d", lc.Count
 type InsertStatement struct {
 	BaseNode
 	Table   TableReference
-	Columns []string
-	Values  [][]Expression
+	Columns []string         // Optional column list
+	Values  [][]Expression   // For INSERT ... VALUES
+	Select  *SelectStatement // For INSERT ... SELECT
 }
 
 func (is *InsertStatement) statementNode() {}
 func (is *InsertStatement) Type() string   { return "InsertStatement" }
-func (is *InsertStatement) String() string { return "INSERT Statement" }
+func (is *InsertStatement) String() string {
+	if is.Select != nil {
+		return fmt.Sprintf("INSERT INTO %s SELECT", is.Table.Name)
+	}
+	return fmt.Sprintf("INSERT INTO %s (%d rows)", is.Table.Name, len(is.Values))
+}
 
 // UPDATE Statement
 type UpdateStatement struct {
 	BaseNode
-	Table TableReference
-	Set   []*Assignment
-	Where Expression
+	Table   TableReference
+	Set     []*Assignment
+	Where   Expression
+	OrderBy []*OrderByClause // MySQL/SQLite support ORDER BY in UPDATE
+	Limit   *LimitClause     // MySQL/SQLite support LIMIT in UPDATE
 }
 
 func (us *UpdateStatement) statementNode() {}
 func (us *UpdateStatement) Type() string   { return "UpdateStatement" }
-func (us *UpdateStatement) String() string { return "UPDATE Statement" }
+func (us *UpdateStatement) String() string {
+	return fmt.Sprintf("UPDATE %s SET %d columns", us.Table.Name, len(us.Set))
+}
 
 // Assignment for UPDATE SET clause
 type Assignment struct {
@@ -237,13 +247,17 @@ func (a *Assignment) String() string { return fmt.Sprintf("%s = %s", a.Column, a
 // DELETE Statement
 type DeleteStatement struct {
 	BaseNode
-	From  TableReference
-	Where Expression
+	From    TableReference
+	Where   Expression
+	OrderBy []*OrderByClause // MySQL/SQLite support ORDER BY in DELETE
+	Limit   *LimitClause     // MySQL/SQLite support LIMIT in DELETE
 }
 
 func (ds *DeleteStatement) statementNode() {}
 func (ds *DeleteStatement) Type() string   { return "DeleteStatement" }
-func (ds *DeleteStatement) String() string { return "DELETE Statement" }
+func (ds *DeleteStatement) String() string {
+	return fmt.Sprintf("DELETE FROM %s", ds.From.Name)
+}
 
 // Unary Expression (NOT, etc.)
 type UnaryExpression struct {

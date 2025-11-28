@@ -1,4 +1,3 @@
-// Package lexer provides SQL tokenization functionality.
 package lexer
 
 import (

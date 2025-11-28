@@ -40,7 +40,10 @@ const (
 	UNION
 	ALL
 	INSERT
+	INTO   // INSERT INTO
+	VALUES // INSERT VALUES
 	UPDATE
+	SET // UPDATE SET
 	DELETE
 	CREATE
 	DROP
@@ -118,7 +121,10 @@ var keywords = map[string]TokenType{
 	"UNION":     UNION,
 	"ALL":       ALL,
 	"INSERT":    INSERT,
+	"INTO":      INTO,
+	"VALUES":    VALUES,
 	"UPDATE":    UPDATE,
+	"SET":       SET,
 	"DELETE":    DELETE,
 	"CREATE":    CREATE,
 	"DROP":      DROP,
@@ -234,8 +240,14 @@ func (tt TokenType) String() string {
 		return "ALL"
 	case INSERT:
 		return "INSERT"
+	case INTO:
+		return "INTO"
+	case VALUES:
+		return "VALUES"
 	case UPDATE:
 		return "UPDATE"
+	case SET:
+		return "SET"
 	case DELETE:
 		return "DELETE"
 	case CREATE:

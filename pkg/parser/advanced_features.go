@@ -1,4 +1,3 @@
-// Package parser - Advanced SQL features (CTEs, Window Functions, Set Operations, CASE)
 package parser
 
 import (
