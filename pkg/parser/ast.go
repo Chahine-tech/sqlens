@@ -152,6 +152,22 @@ func (se *StarExpression) String() string {
 	return "*"
 }
 
+// Aliased Expression (expression AS alias)
+type AliasedExpression struct {
+	BaseNode
+	Expression Expression
+	Alias      string
+}
+
+func (ae *AliasedExpression) expressionNode() {}
+func (ae *AliasedExpression) Type() string    { return "AliasedExpression" }
+func (ae *AliasedExpression) String() string {
+	if ae.Alias != "" {
+		return fmt.Sprintf("%s AS %s", ae.Expression.String(), ae.Alias)
+	}
+	return ae.Expression.String()
+}
+
 // ORDER BY Clause
 type OrderByClause struct {
 	BaseNode
@@ -286,3 +302,115 @@ func (se *SubqueryExpression) Type() string    { return "SubqueryExpression" }
 func (se *SubqueryExpression) String() string {
 	return fmt.Sprintf("(%s)", se.Query.String())
 }
+
+// CTE (Common Table Expression) - WITH clause
+type CommonTableExpression struct {
+	BaseNode
+	Name    string
+	Columns []string // Optional column names
+	Query   *SelectStatement
+}
+
+func (cte *CommonTableExpression) Type() string   { return "CommonTableExpression" }
+func (cte *CommonTableExpression) String() string { return fmt.Sprintf("CTE: %s", cte.Name) }
+
+// WITH Statement (contains CTEs and main query)
+type WithStatement struct {
+	BaseNode
+	Recursive bool
+	CTEs      []*CommonTableExpression
+	Query     Statement // Main query (usually SelectStatement)
+}
+
+func (ws *WithStatement) statementNode() {}
+func (ws *WithStatement) Type() string   { return "WithStatement" }
+func (ws *WithStatement) String() string { return fmt.Sprintf("WITH %d CTEs", len(ws.CTEs)) }
+
+// Window Function
+type WindowFunction struct {
+	BaseNode
+	Function  *FunctionCall // The window function (ROW_NUMBER, RANK, etc.)
+	OverClause *OverClause
+}
+
+func (wf *WindowFunction) expressionNode() {}
+func (wf *WindowFunction) Type() string    { return "WindowFunction" }
+func (wf *WindowFunction) String() string {
+	return fmt.Sprintf("%s OVER (...)", wf.Function.Name)
+}
+
+// OVER Clause for Window Functions
+type OverClause struct {
+	BaseNode
+	PartitionBy []Expression
+	OrderBy     []*OrderByClause
+	Frame       *WindowFrame
+}
+
+func (oc *OverClause) Type() string   { return "OverClause" }
+func (oc *OverClause) String() string { return "OVER clause" }
+
+// Window Frame (ROWS/RANGE BETWEEN ... AND ...)
+type WindowFrame struct {
+	BaseNode
+	FrameType  string // ROWS or RANGE
+	Start *FrameBound
+	End   *FrameBound
+}
+
+func (wf *WindowFrame) Type() string   { return "WindowFrame" }
+func (wf *WindowFrame) String() string { return fmt.Sprintf("%s frame", wf.FrameType) }
+
+// Frame Boundary (UNBOUNDED PRECEDING, CURRENT ROW, etc.)
+type FrameBound struct {
+	BaseNode
+	BoundType   string // UNBOUNDED, CURRENT, or expression
+	Direction string // PRECEDING or FOLLOWING
+	Offset Expression // For expression-based bounds
+}
+
+func (fb *FrameBound) Type() string   { return "FrameBound" }
+func (fb *FrameBound) String() string { return fmt.Sprintf("%s %s", fb.BoundType, fb.Direction) }
+
+// Set Operation (UNION, INTERSECT, EXCEPT)
+type SetOperation struct {
+	BaseNode
+	Left     Statement
+	Operator string // UNION, INTERSECT, EXCEPT
+	All      bool   // UNION ALL, etc.
+	Right    Statement
+}
+
+func (so *SetOperation) statementNode() {}
+func (so *SetOperation) Type() string   { return "SetOperation" }
+func (so *SetOperation) String() string {
+	op := so.Operator
+	if so.All {
+		op += " ALL"
+	}
+	return fmt.Sprintf("Set Operation: %s", op)
+}
+
+// CASE Expression
+type CaseExpression struct {
+	BaseNode
+	Input      Expression      // Optional input for simple CASE
+	WhenClauses []*WhenClause
+	ElseResult Expression      // Optional ELSE clause
+}
+
+func (ce *CaseExpression) expressionNode() {}
+func (ce *CaseExpression) Type() string    { return "CaseExpression" }
+func (ce *CaseExpression) String() string {
+	return fmt.Sprintf("CASE with %d WHEN clauses", len(ce.WhenClauses))
+}
+
+// WHEN Clause in CASE expression
+type WhenClause struct {
+	BaseNode
+	Condition Expression
+	Result    Expression
+}
+
+func (wc *WhenClause) Type() string   { return "WhenClause" }
+func (wc *WhenClause) String() string { return "WHEN clause" }

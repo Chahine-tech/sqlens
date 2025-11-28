@@ -116,8 +116,15 @@ func (p *Parser) GetParseMetrics() map[string]interface{} {
 
 func (p *Parser) ParseStatement() (Statement, error) {
 	switch p.curToken.Type {
+	case lexer.WITH:
+		return p.parseWithStatement()
 	case lexer.SELECT:
-		return p.parseSelectStatement()
+		stmt, err := p.parseSelectStatement()
+		if err != nil {
+			return nil, err
+		}
+		// Check for set operations (UNION, INTERSECT, EXCEPT)
+		return p.parseSetOperation(stmt)
 	case lexer.INSERT:
 		return p.parseInsertStatement()
 	case lexer.UPDATE:
@@ -262,7 +269,22 @@ func (p *Parser) parseSelectList() ([]Expression, error) {
 	if err != nil {
 		return nil, err
 	}
-	columns = append(columns, expr)
+
+	// Check for alias (AS keyword or implicit alias)
+	if p.curTokenIs(lexer.AS) {
+		p.nextToken()
+		if !p.curTokenIs(lexer.IDENT) {
+			return nil, fmt.Errorf("expected identifier after AS, got %s", p.curToken.Literal)
+		}
+		aliasExpr := &AliasedExpression{
+			Expression: expr,
+			Alias:      p.curToken.Literal,
+		}
+		columns = append(columns, aliasExpr)
+		p.nextToken()
+	} else {
+		columns = append(columns, expr)
+	}
 
 	for p.curTokenIs(lexer.COMMA) {
 		p.nextToken()
@@ -275,7 +297,22 @@ func (p *Parser) parseSelectList() ([]Expression, error) {
 			if err != nil {
 				return nil, err
 			}
-			columns = append(columns, expr)
+
+			// Check for alias
+			if p.curTokenIs(lexer.AS) {
+				p.nextToken()
+				if !p.curTokenIs(lexer.IDENT) {
+					return nil, fmt.Errorf("expected identifier after AS, got %s", p.curToken.Literal)
+				}
+				aliasExpr := &AliasedExpression{
+					Expression: expr,
+					Alias:      p.curToken.Literal,
+				}
+				columns = append(columns, aliasExpr)
+				p.nextToken()
+			} else {
+				columns = append(columns, expr)
+			}
 		}
 	}
 
@@ -413,8 +450,8 @@ func (p *Parser) parseGroupByClause() ([]Expression, error) {
 	}
 
 	p.nextToken()
-	if !p.expectPeek(lexer.BY) {
-		return nil, fmt.Errorf("expected BY after GROUP")
+	if !p.curTokenIs(lexer.BY) {
+		return nil, fmt.Errorf("expected BY after GROUP, got %s", p.curToken.Literal)
 	}
 
 	p.nextToken()
@@ -659,6 +696,8 @@ func (p *Parser) parsePrimaryExpression() (Expression, error) {
 		return expr, nil
 	case lexer.LPAREN:
 		return p.parseGroupedExpression()
+	case lexer.CASE:
+		return p.parseCaseExpression()
 	default:
 		return nil, fmt.Errorf("unexpected token in expression: %s", p.curToken.Literal)
 	}
@@ -731,10 +770,17 @@ func (p *Parser) parseFunctionCall(name string) (Expression, error) {
 
 	p.nextToken() // consume the closing paren
 
-	return &FunctionCall{
+	funcCall := &FunctionCall{
 		Name:      name,
 		Arguments: arguments,
-	}, nil
+	}
+
+	// Check if this is a window function (followed by OVER)
+	if p.curTokenIs(lexer.OVER) {
+		return p.parseWindowFunction(funcCall)
+	}
+
+	return funcCall, nil
 }
 
 func (p *Parser) parseNumberLiteral() (Expression, error) {

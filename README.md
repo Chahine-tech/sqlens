@@ -10,6 +10,10 @@ A powerful multi-dialect SQL query analysis tool written in Go that provides com
 - **Query Analysis**: Extract tables, columns, joins, and conditions
 - **Advanced Optimization Suggestions**: Get intelligent, dialect-specific recommendations for query improvements
 - **Subquery Support**: Parse and analyze complex subqueries in WHERE clauses
+- **Advanced SQL Features**:
+  - **CTEs (WITH clause)**: Common Table Expressions with recursive support
+  - **Window Functions**: ROW_NUMBER, RANK, PARTITION BY, ORDER BY, window frames
+  - **Set Operations**: UNION, UNION ALL, INTERSECT, EXCEPT
 - **Log Parsing**: Parse SQL Server log files (Profiler, Extended Events, Query Store)
 - **Multiple Output Formats**: JSON, table, and CSV output
 - **CLI Interface**: Easy-to-use command-line interface with enhanced optimization output
@@ -292,11 +296,43 @@ sql-parser-go/
 
 ## Supported SQL Features
 
+### Core SQL Statements
 - SELECT statements with complex joins
 - WHERE, GROUP BY, HAVING, ORDER BY clauses
-- Subqueries and CTEs (planned)
+- Subqueries in WHERE and FROM clauses
 - Functions and expressions
 - INSERT, UPDATE, DELETE statements (basic)
+
+### Advanced Features ✨
+- **CTEs (Common Table Expressions)**
+  ```sql
+  WITH sales_summary AS (
+      SELECT product_id, SUM(amount) as total
+      FROM sales GROUP BY product_id
+  )
+  SELECT * FROM sales_summary WHERE total > 1000;
+  ```
+
+- **Window Functions**
+  ```sql
+  SELECT
+      employee_id,
+      salary,
+      ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC) as rank,
+      AVG(salary) OVER (ORDER BY hire_date ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) as moving_avg
+  FROM employees;
+  ```
+
+- **Set Operations**
+  ```sql
+  SELECT id FROM customers
+  UNION ALL
+  SELECT id FROM prospects
+  INTERSECT
+  SELECT id FROM active_accounts;
+  ```
+
+See [examples/queries/](examples/queries/) for more comprehensive examples.
 
 ## Supported Log Formats
 
@@ -327,13 +363,17 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [x] **Advanced optimization suggestions** ✅ **COMPLETED!**
 - [x] **Dialect-specific optimization recommendations** ✅ **COMPLETED!**
 - [x] **Subquery parsing and optimization** ✅ **COMPLETED!**
-- [ ] Query execution plan analysis
-- [ ] Web interface
+- [x] **Extended dialect features** ✅ **COMPLETED!**
+  - [x] **CTEs (WITH clause)** - Simple and multiple CTEs with column lists
+  - [x] **Window Functions** - ROW_NUMBER, RANK, PARTITION BY, ORDER BY, frame clauses
+  - [x] **Set Operations** - UNION, UNION ALL, INTERSECT, EXCEPT
 - [x] Performance benchmarking
+- [ ] Query execution plan analysis
 - [ ] Real-time log monitoring
 - [ ] Integration with monitoring tools
-- [ ] Extended dialect feature support (CTEs, window functions, etc.)
+- [ ] CASE expressions (partial - needs expression parser refactoring)
 - [ ] Schema-aware parsing and validation
+- [ ] More DDL support (ALTER, CREATE TABLE, etc.)
 
 ## Acknowledgments
 

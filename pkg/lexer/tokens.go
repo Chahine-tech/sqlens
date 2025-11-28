@@ -46,6 +46,24 @@ const (
 	DROP
 	ALTER
 	TABLE
+	WITH      // CTE
+	RECURSIVE // Recursive CTE
+	OVER      // Window functions
+	PARTITION // Window functions
+	ROWS      // Window frame
+	RANGE     // Window frame
+	UNBOUNDED // Window frame
+	PRECEDING // Window frame
+	FOLLOWING // Window frame
+	CURRENT   // Window frame
+	ROW       // Window frame
+	INTERSECT // Set operations
+	EXCEPT    // Set operations
+	CASE      // CASE expression
+	WHEN      // CASE expression
+	THEN      // CASE expression
+	ELSE      // CASE expression
+	END       // CASE/CTE end
 
 	// Operators
 	ASSIGN  // =
@@ -106,10 +124,28 @@ var keywords = map[string]TokenType{
 	"DROP":     DROP,
 	"ALTER":    ALTER,
 	"TABLE":    TABLE,
-	"LIKE":     LIKE,
-	"BETWEEN":  BETWEEN,
-	"IS":       IS,
-	"NULL":     NULL,
+	"LIKE":      LIKE,
+	"BETWEEN":   BETWEEN,
+	"IS":        IS,
+	"NULL":      NULL,
+	"WITH":      WITH,
+	"RECURSIVE": RECURSIVE,
+	"OVER":      OVER,
+	"PARTITION": PARTITION,
+	"ROWS":      ROWS,
+	"RANGE":     RANGE,
+	"UNBOUNDED": UNBOUNDED,
+	"PRECEDING": PRECEDING,
+	"FOLLOWING": FOLLOWING,
+	"CURRENT":   CURRENT,
+	"ROW":       ROW,
+	"INTERSECT": INTERSECT,
+	"EXCEPT":    EXCEPT,
+	"CASE":      CASE,
+	"WHEN":      WHEN,
+	"THEN":      THEN,
+	"ELSE":      ELSE,
+	"END":       END,
 }
 
 type Token struct {
@@ -232,6 +268,42 @@ func (tt TokenType) String() string {
 		return "IS"
 	case NULL:
 		return "NULL"
+	case WITH:
+		return "WITH"
+	case RECURSIVE:
+		return "RECURSIVE"
+	case OVER:
+		return "OVER"
+	case PARTITION:
+		return "PARTITION"
+	case ROWS:
+		return "ROWS"
+	case RANGE:
+		return "RANGE"
+	case UNBOUNDED:
+		return "UNBOUNDED"
+	case PRECEDING:
+		return "PRECEDING"
+	case FOLLOWING:
+		return "FOLLOWING"
+	case CURRENT:
+		return "CURRENT"
+	case ROW:
+		return "ROW"
+	case INTERSECT:
+		return "INTERSECT"
+	case EXCEPT:
+		return "EXCEPT"
+	case CASE:
+		return "CASE"
+	case WHEN:
+		return "WHEN"
+	case THEN:
+		return "THEN"
+	case ELSE:
+		return "ELSE"
+	case END:
+		return "END"
 	case COMMA:
 		return "COMMA"
 	case SEMICOLON:
