@@ -390,31 +390,35 @@ func (p *Parser) parseJoinClause() (*JoinClause, error) {
 	if p.curTokenIs(lexer.INNER) {
 		joinClause.JoinType = "INNER"
 		p.nextToken()
-		if !p.expectPeek(lexer.JOIN) {
+		if !p.curTokenIs(lexer.JOIN) {
 			PutJoinClause(joinClause)
-			return nil, fmt.Errorf("expected JOIN after INNER")
+			return nil, fmt.Errorf("expected JOIN after INNER, got %s", p.curToken.Literal)
 		}
+		p.nextToken()
 	} else if p.curTokenIs(lexer.LEFT) {
 		joinClause.JoinType = "LEFT"
 		p.nextToken()
-		if !p.expectPeek(lexer.JOIN) {
+		if !p.curTokenIs(lexer.JOIN) {
 			PutJoinClause(joinClause)
-			return nil, fmt.Errorf("expected JOIN after LEFT")
+			return nil, fmt.Errorf("expected JOIN after LEFT, got %s", p.curToken.Literal)
 		}
+		p.nextToken()
 	} else if p.curTokenIs(lexer.RIGHT) {
 		joinClause.JoinType = "RIGHT"
 		p.nextToken()
-		if !p.expectPeek(lexer.JOIN) {
+		if !p.curTokenIs(lexer.JOIN) {
 			PutJoinClause(joinClause)
-			return nil, fmt.Errorf("expected JOIN after RIGHT")
+			return nil, fmt.Errorf("expected JOIN after RIGHT, got %s", p.curToken.Literal)
 		}
+		p.nextToken()
 	} else if p.curTokenIs(lexer.FULL) {
 		joinClause.JoinType = "FULL"
 		p.nextToken()
-		if !p.expectPeek(lexer.JOIN) {
+		if !p.curTokenIs(lexer.JOIN) {
 			PutJoinClause(joinClause)
-			return nil, fmt.Errorf("expected JOIN after FULL")
+			return nil, fmt.Errorf("expected JOIN after FULL, got %s", p.curToken.Literal)
 		}
+		p.nextToken()
 	} else if p.curTokenIs(lexer.JOIN) {
 		joinClause.JoinType = "INNER"
 		p.nextToken()

@@ -76,16 +76,89 @@ Each dialect has its own quoting style for identifiers:
 - **SQLite**: `SELECT "table"."column" FROM "table"`
 - **Oracle**: `SELECT "table"."column" FROM "schema"."table"`
 
-### Feature Support
-The parser recognizes dialect-specific features:
-- **CTEs**: Supported in all modern dialects
-- **Window Functions**: Supported in MySQL 8.0+, PostgreSQL, SQL Server, SQLite 3.25+
+### Advanced SQL Features (Newly Supported! ✨)
+
+#### Common Table Expressions (CTEs)
+All dialects now support WITH clause:
+```sql
+-- MySQL
+WITH `sales_cte` AS (
+    SELECT `product_id`, SUM(`amount`) as `total`
+    FROM `sales` GROUP BY `product_id`
+)
+SELECT * FROM `sales_cte`;
+
+-- PostgreSQL
+WITH "revenue_cte" AS (
+    SELECT "dept_id", SUM("revenue") as "total"
+    FROM "departments" GROUP BY "dept_id"
+)
+SELECT * FROM "revenue_cte";
+
+-- SQL Server
+WITH [employee_cte] AS (
+    SELECT [emp_id], [name], [salary]
+    FROM [employees]
+)
+SELECT * FROM [employee_cte];
+```
+
+**Features:**
+- Simple CTEs
+- Multiple CTEs (comma-separated)
+- CTEs with explicit column lists
+- Recursive CTE support (keyword recognized)
+
+#### Window Functions
+Full support for window functions across all dialects:
+```sql
+-- Partition and ordering
+SELECT
+    employee_id,
+    ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC) as rank
+FROM employees;
+
+-- Window frames
+SELECT
+    date,
+    SUM(amount) OVER (
+        ORDER BY date
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) as running_total
+FROM transactions;
+```
+
+**Supported window features:**
+- `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()`, and all aggregate functions
+- `PARTITION BY` with multiple expressions
+- `ORDER BY` within window
+- Frame specifications: `ROWS` and `RANGE`
+- Frame boundaries: `UNBOUNDED PRECEDING/FOLLOWING`, `CURRENT ROW`, expression-based offsets
+
+#### Set Operations
+All dialects support set operations:
+- `UNION` - Combines and removes duplicates
+- `UNION ALL` - Combines keeping duplicates
+- `INTERSECT` - Returns common records
+- `EXCEPT` - Returns records in first set but not in second
+
+```sql
+SELECT id FROM customers
+UNION ALL
+SELECT id FROM prospects
+INTERSECT
+SELECT id FROM active_users;
+```
+
+### Other Feature Support
 - **JSON Support**: MySQL 5.7+, PostgreSQL, SQL Server 2016+, SQLite 3.38+
 - **Array Support**: PostgreSQL only
 - **XML Support**: PostgreSQL, SQL Server, Oracle
 
 ### Keyword Recognition
 Each dialect has its own set of reserved keywords and functions that are recognized during parsing.
+
+**Newly added keywords:** `WITH`, `RECURSIVE`, `OVER`, `PARTITION`, `ROWS`, `RANGE`, `UNBOUNDED`, `PRECEDING`, `FOLLOWING`, `CURRENT`, `ROW`, `INTERSECT`, `EXCEPT`, `CASE`, `WHEN`, `THEN`, `ELSE`, `END`
 
 ## Default Behavior
 - **Default dialect**: SQL Server

@@ -329,7 +329,7 @@ func (ws *WithStatement) String() string { return fmt.Sprintf("WITH %d CTEs", le
 // Window Function
 type WindowFunction struct {
 	BaseNode
-	Function  *FunctionCall // The window function (ROW_NUMBER, RANK, etc.)
+	Function   *FunctionCall // The window function (ROW_NUMBER, RANK, etc.)
 	OverClause *OverClause
 }
 
@@ -353,9 +353,9 @@ func (oc *OverClause) String() string { return "OVER clause" }
 // Window Frame (ROWS/RANGE BETWEEN ... AND ...)
 type WindowFrame struct {
 	BaseNode
-	FrameType  string // ROWS or RANGE
-	Start *FrameBound
-	End   *FrameBound
+	FrameType string // ROWS or RANGE
+	Start     *FrameBound
+	End       *FrameBound
 }
 
 func (wf *WindowFrame) Type() string   { return "WindowFrame" }
@@ -364,9 +364,9 @@ func (wf *WindowFrame) String() string { return fmt.Sprintf("%s frame", wf.Frame
 // Frame Boundary (UNBOUNDED PRECEDING, CURRENT ROW, etc.)
 type FrameBound struct {
 	BaseNode
-	BoundType   string // UNBOUNDED, CURRENT, or expression
-	Direction string // PRECEDING or FOLLOWING
-	Offset Expression // For expression-based bounds
+	BoundType string     // UNBOUNDED, CURRENT, or expression
+	Direction string     // PRECEDING or FOLLOWING
+	Offset    Expression // For expression-based bounds
 }
 
 func (fb *FrameBound) Type() string   { return "FrameBound" }
@@ -394,9 +394,9 @@ func (so *SetOperation) String() string {
 // CASE Expression
 type CaseExpression struct {
 	BaseNode
-	Input      Expression      // Optional input for simple CASE
+	Input       Expression // Optional input for simple CASE
 	WhenClauses []*WhenClause
-	ElseResult Expression      // Optional ELSE clause
+	ElseResult  Expression // Optional ELSE clause
 }
 
 func (ce *CaseExpression) expressionNode() {}
