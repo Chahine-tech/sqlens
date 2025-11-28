@@ -325,9 +325,14 @@ go tool pprof cpu.prof
   - **CTEs (WITH clause)** - Simple, multiple, with column lists
   - **Window Functions** - OVER, PARTITION BY, ORDER BY, ROWS/RANGE frames
   - **Set Operations** - UNION, UNION ALL, INTERSECT, EXCEPT
+  - **CASE Expressions** - Searched and simple CASE statements
+- **DML Statement Support** ✅
+  - **INSERT** - VALUES, multiple rows, INSERT...SELECT
+  - **UPDATE** - Multiple columns, WHERE, ORDER BY/LIMIT (MySQL/SQLite)
+  - **DELETE** - WHERE, ORDER BY/LIMIT (MySQL/SQLite)
 
 ### 🚧 In Progress / Planned
-- [ ] CASE expressions (AST exists, needs expression parser refactoring)
+- [ ] Subqueries in expressions (VALUES, EXISTS, IN with subquery)
 - [ ] Query execution plan analysis
 - [ ] Real-time log monitoring
 - [ ] Integration with monitoring tools

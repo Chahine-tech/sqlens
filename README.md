@@ -5,6 +5,11 @@ A powerful multi-dialect SQL query analysis tool written in Go that provides com
 ## Features
 
 - **Multi-Dialect Support**: Parse MySQL, PostgreSQL, SQL Server, SQLite, and Oracle queries
+- **Full SQL Statement Support**:
+  - **SELECT**: Complex queries with joins, subqueries, aggregations
+  - **INSERT**: VALUES and SELECT variants, multiple rows
+  - **UPDATE**: Multiple columns, WHERE clause, ORDER BY/LIMIT (MySQL/SQLite)
+  - **DELETE**: WHERE clause, ORDER BY/LIMIT (MySQL/SQLite)
 - **SQL Query Parsing**: Parse and analyze complex SQL queries with dialect-specific syntax
 - **Abstract Syntax Tree (AST)**: Generate detailed AST representations
 - **Query Analysis**: Extract tables, columns, joins, and conditions
@@ -14,6 +19,7 @@ A powerful multi-dialect SQL query analysis tool written in Go that provides com
   - **CTEs (WITH clause)**: Common Table Expressions with recursive support
   - **Window Functions**: ROW_NUMBER, RANK, PARTITION BY, ORDER BY, window frames
   - **Set Operations**: UNION, UNION ALL, INTERSECT, EXCEPT
+  - **CASE Expressions**: Searched and simple CASE statements
 - **Log Parsing**: Parse SQL Server log files (Profiler, Extended Events, Query Store)
 - **Multiple Output Formats**: JSON, table, and CSV output
 - **CLI Interface**: Easy-to-use command-line interface with enhanced optimization output
@@ -74,6 +80,44 @@ make install
 ```
 
 See [DIALECT_SUPPORT.md](DIALECT_SUPPORT.md) for detailed information about dialect-specific features.
+
+### DML Statement Support (INSERT, UPDATE, DELETE)
+
+#### INSERT Statements
+```bash
+# Simple INSERT with VALUES
+./bin/sqlparser -sql "INSERT INTO users (name, email) VALUES ('John', 'john@test.com')" -dialect mysql -output table
+
+# INSERT with multiple rows
+./bin/sqlparser -sql "INSERT INTO users (name, email) VALUES ('John', 'john@test.com'), ('Jane', 'jane@test.com')" -dialect mysql
+
+# INSERT with SELECT
+./bin/sqlparser -sql "INSERT INTO archive SELECT * FROM users WHERE active = 0" -dialect postgresql
+```
+
+#### UPDATE Statements
+```bash
+# Simple UPDATE
+./bin/sqlparser -sql "UPDATE users SET status = 'active' WHERE id > 100" -dialect postgresql -output table
+
+# UPDATE multiple columns
+./bin/sqlparser -sql "UPDATE users SET name = 'Jane', email = 'jane@test.com', status = 1 WHERE id = 1" -dialect mysql
+
+# UPDATE with ORDER BY and LIMIT (MySQL/SQLite)
+./bin/sqlparser -sql "UPDATE users SET status = 'inactive' WHERE last_login < '2020-01-01' ORDER BY last_login LIMIT 100" -dialect mysql
+```
+
+#### DELETE Statements
+```bash
+# Simple DELETE
+./bin/sqlparser -sql "DELETE FROM users WHERE id = 1" -dialect mysql -output table
+
+# DELETE with complex WHERE
+./bin/sqlparser -sql "DELETE FROM logs WHERE created_at < '2020-01-01' AND level = 'debug'" -dialect postgresql
+
+# DELETE with ORDER BY and LIMIT (MySQL/SQLite)
+./bin/sqlparser -sql "DELETE FROM logs WHERE level = 'debug' ORDER BY created_at LIMIT 1000" -dialect mysql
+```
 
 ### Get Optimization Suggestions
 
