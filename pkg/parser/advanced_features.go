@@ -361,7 +361,6 @@ func (p *Parser) parseCaseExpression() (*CaseExpression, error) {
 			return nil, fmt.Errorf("failed to parse CASE input: %v", err)
 		}
 		ce.Input = input
-		p.nextToken()
 	}
 
 	// Parse WHEN clauses
@@ -385,7 +384,6 @@ func (p *Parser) parseCaseExpression() (*CaseExpression, error) {
 			return nil, fmt.Errorf("failed to parse ELSE result: %v", err)
 		}
 		ce.ElseResult = elseResult
-		p.nextToken()
 	}
 
 	// Expect END keyword
@@ -412,7 +410,6 @@ func (p *Parser) parseWhenClause() (*WhenClause, error) {
 		return nil, fmt.Errorf("failed to parse WHEN condition: %v", err)
 	}
 	wc.Condition = condition
-	p.nextToken()
 
 	// Expect THEN keyword
 	if !p.curTokenIs(lexer.THEN) {
@@ -426,7 +423,6 @@ func (p *Parser) parseWhenClause() (*WhenClause, error) {
 		return nil, fmt.Errorf("failed to parse THEN result: %v", err)
 	}
 	wc.Result = result
-	p.nextToken()
 
 	return wc, nil
 }
