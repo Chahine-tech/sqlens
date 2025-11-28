@@ -216,7 +216,7 @@ func BenchmarkComplexDialectQueries(b *testing.B) {
 			"INNER JOIN `ecommerce`.`orders` `o` ON `u`.`user_id` = `o`.`user_id` " +
 			"INNER JOIN `ecommerce`.`order_items` `oi` ON `o`.`order_id` = `oi`.`order_id` " +
 			"INNER JOIN `ecommerce`.`products` `p` ON `oi`.`product_id` = `p`.`product_id` " +
-			"WHERE `o`.`order_date` >= DATE_SUB(NOW(), INTERVAL 30 DAY) " +
+			"WHERE `o`.`order_date` >= '2024-01-01' " +
 			"AND `u`.`status` = 'active' " +
 			"AND `p`.`category` IN ('electronics', 'books', 'clothing') " +
 			"GROUP BY `u`.`user_id`, `u`.`username`, `p`.`name`, `oi`.`quantity`, `oi`.`price`, `o`.`order_date`, `o`.`status`, `o`.`total_amount` " +

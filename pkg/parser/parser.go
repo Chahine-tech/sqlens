@@ -488,10 +488,9 @@ func (p *Parser) parseOrderByClause() ([]*OrderByClause, error) {
 	}
 
 	p.nextToken()
-	if !p.expectPeek(lexer.BY) {
-		return nil, fmt.Errorf("expected BY after ORDER")
+	if !p.curTokenIs(lexer.BY) {
+		return nil, fmt.Errorf("expected BY after ORDER, got %s", p.curToken.Literal)
 	}
-
 	p.nextToken()
 
 	var clauses []*OrderByClause
@@ -822,9 +821,10 @@ func (p *Parser) parseGroupedExpression() (Expression, error) {
 		return nil, err
 	}
 
-	if !p.expectPeek(lexer.RPAREN) {
-		return nil, fmt.Errorf("expected ')' to close grouped expression")
+	if !p.curTokenIs(lexer.RPAREN) {
+		return nil, fmt.Errorf("expected ')' to close grouped expression, got %s", p.curToken.Literal)
 	}
+	p.nextToken()
 
 	return exp, nil
 }
