@@ -17,6 +17,17 @@ import (
 	"github.com/Chahine-tech/sql-parser-go/pkg/parser"
 )
 
+const banner = `
+   _____ ____    __
+  / ___// __ \  / /   ___  ____  _____
+  \__ \/ / / / / /   / _ \/ __ \/ ___/
+ ___/ / /_/ / / /___/  __/ / / (__  )
+/____/\___\_\/_____/\___/_/ /_/____/
+
+  Multi-dialect SQL Query Analyzer
+  v1.0.0 | MySQL • PostgreSQL • SQL Server • SQLite • Oracle
+`
+
 func main() {
 	var (
 		queryFile    = flag.String("query", "", "File containing the SQL query")
@@ -31,6 +42,7 @@ func main() {
 	flag.Parse()
 
 	if *showHelp {
+		fmt.Print(banner)
 		showUsage()
 		return
 	}
@@ -109,6 +121,7 @@ func analyzeQueryString(sql string, cfg *config.Config, verbose bool) error {
 	defer cancel()
 
 	if verbose {
+		fmt.Print(banner)
 		fmt.Printf("Analyzing SQL query...\n")
 		fmt.Printf("Query: %s\n", sql)
 		fmt.Printf("Dialect: %s\n\n", cfg.Parser.Dialect)
