@@ -131,7 +131,7 @@ func TestCreateTable(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "CREATE TABLE complex example",
+			name: "CREATE TABLE complex example",
 			sql: `CREATE TABLE IF NOT EXISTS orders (
 				id INT AUTO_INCREMENT PRIMARY KEY,
 				user_id INT NOT NULL,

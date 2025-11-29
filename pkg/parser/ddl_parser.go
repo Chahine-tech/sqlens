@@ -65,7 +65,7 @@ func (p *Parser) parseCreateTableStatement() (*CreateTableStatement, error) {
 	for !p.curTokenIs(lexer.RPAREN) && !p.curTokenIs(lexer.EOF) {
 		// Check if this is a table constraint
 		if p.curTokenIs(lexer.PRIMARY) || p.curTokenIs(lexer.FOREIGN) ||
-		   p.curTokenIs(lexer.UNIQUE) || p.curTokenIs(lexer.CONSTRAINT) {
+			p.curTokenIs(lexer.UNIQUE) || p.curTokenIs(lexer.CONSTRAINT) {
 			constraint, err := p.parseTableConstraint()
 			if err != nil {
 				return nil, err
@@ -493,7 +493,7 @@ func (p *Parser) parseAlterAction() (*AlterAction, error) {
 
 		// Check if adding a constraint or column
 		if p.curTokenIs(lexer.CONSTRAINT) || p.curTokenIs(lexer.PRIMARY) ||
-		   p.curTokenIs(lexer.FOREIGN) || p.curTokenIs(lexer.UNIQUE) {
+			p.curTokenIs(lexer.FOREIGN) || p.curTokenIs(lexer.UNIQUE) {
 			constraint, err := p.parseTableConstraint()
 			if err != nil {
 				return nil, err

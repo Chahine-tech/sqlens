@@ -322,7 +322,7 @@ func (se *SubqueryExpression) String() string {
 type CommonTableExpression struct {
 	BaseNode
 	Name    string
-	Columns []string // Optional column names
+	Columns []string  // Optional column names
 	Query   Statement // Can be SelectStatement or SetOperation (for recursive CTEs with UNION)
 }
 
@@ -429,6 +429,7 @@ type WhenClause struct {
 
 func (wc *WhenClause) Type() string   { return "WhenClause" }
 func (wc *WhenClause) String() string { return "WHEN clause" }
+
 // DDL Statements
 
 // CREATE TABLE Statement
@@ -451,9 +452,9 @@ type ColumnDefinition struct {
 	BaseNode
 	Name          string
 	DataType      string
-	Length        int    // For VARCHAR(255), etc.
-	Precision     int    // For DECIMAL(10,2)
-	Scale         int    // For DECIMAL(10,2)
+	Length        int // For VARCHAR(255), etc.
+	Precision     int // For DECIMAL(10,2)
+	Scale         int // For DECIMAL(10,2)
 	NotNull       bool
 	PrimaryKey    bool
 	Unique        bool

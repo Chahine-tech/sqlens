@@ -360,6 +360,7 @@ func (a *Analyzer) hasCartesianProduct(stmt *parser.SelectStatement) bool {
 
 	return false
 }
+
 // DDL Statement Analyzers
 
 func (a *Analyzer) analyzeCreateTableStatement(stmt *parser.CreateTableStatement) {

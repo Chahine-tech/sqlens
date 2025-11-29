@@ -485,8 +485,8 @@ func TestIsNullOperator(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "IS NULL in subquery",
-			sql:  `SELECT * FROM users WHERE id IN (SELECT user_id FROM orders WHERE cancelled_at IS NULL)`,
+			name:    "IS NULL in subquery",
+			sql:     `SELECT * FROM users WHERE id IN (SELECT user_id FROM orders WHERE cancelled_at IS NULL)`,
 			wantErr: false,
 		},
 	}
