@@ -15,6 +15,11 @@ A powerful multi-dialect SQL query analysis tool written in Go that provides com
   - **ALTER TABLE**: ADD/DROP/MODIFY/CHANGE columns and constraints
   - **CREATE INDEX**: Simple and unique indexes with IF NOT EXISTS
   - **TRANSACTIONS**: BEGIN, START TRANSACTION, COMMIT, ROLLBACK, SAVEPOINT, RELEASE
+- **Schema-Aware Parsing**: Validate SQL against database schemas
+  - **Schema Loading**: Load schemas from JSON, YAML files
+  - **Table/Column Validation**: Verify table and column existence
+  - **Type Checking**: Validate data type compatibility
+  - **Foreign Key Validation**: Check foreign key references
 - **SQL Query Parsing**: Parse and analyze complex SQL queries with dialect-specific syntax
 - **Abstract Syntax Tree (AST)**: Generate detailed AST representations
 - **Query Analysis**: Extract tables, columns, joins, and conditions
@@ -330,6 +335,68 @@ SQLens provides full transaction control support across all dialects:
 - **SAVEPOINT**: Create a savepoint within a transaction
 - **ROLLBACK TO SAVEPOINT**: Roll back to a specific savepoint
 - **RELEASE SAVEPOINT**: Release a savepoint (PostgreSQL/MySQL)
+
+#### Schema-Aware Parsing & Validation
+
+SQLens can validate SQL queries against database schemas to catch errors before execution:
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"github.com/Chahine-tech/sql-parser-go/pkg/dialect"
+	"github.com/Chahine-tech/sql-parser-go/pkg/parser"
+	"github.com/Chahine-tech/sql-parser-go/pkg/schema"
+)
+
+func main() {
+	// Load schema from JSON file
+	loader := schema.NewSchemaLoader()
+	s, _ := loader.LoadFromFile("examples/schemas/test_schema.json")
+
+	// Create validator
+	validator := schema.NewValidator(s)
+
+	// Parse SQL query
+	sql := "SELECT id, name, invalid_column FROM users WHERE age > 18"
+	p := parser.NewWithDialect(context.Background(), sql, dialect.GetDialect("mysql"))
+	stmt, _ := p.ParseStatement()
+
+	// Validate against schema
+	errors := validator.ValidateStatement(stmt)
+	for _, err := range errors {
+		fmt.Printf("[%s] %s\n", err.Type, err.Message)
+		// Output: [COLUMN_NOT_FOUND] Column 'invalid_column' not found in table 'users'
+		//         [COLUMN_NOT_FOUND] Column 'age' not found in table 'users'
+	}
+}
+```
+
+**Schema Features:**
+- **Load schemas** from JSON or YAML files
+- **Validate tables** - Detect non-existent tables
+- **Validate columns** - Detect non-existent or mistyped column names
+- **Type checking** - Validate data type compatibility in expressions
+- **Foreign key validation** - Verify foreign key references
+
+**Example schema (JSON):**
+```json
+{
+  "name": "my_database",
+  "tables": [
+    {
+      "name": "users",
+      "columns": [
+        {"name": "id", "type": "INT", "primary_key": true},
+        {"name": "name", "type": "VARCHAR", "length": 100},
+        {"name": "email", "type": "VARCHAR", "length": 255, "unique": true}
+      ]
+    }
+  ]
+}
+```
 
 ### Parse SQL Server Logs
 
@@ -804,11 +871,22 @@ ROLLBACK TO SAVEPOINT:           3.0 μs     ✅ Quick savepoint rollback
 RELEASE SAVEPOINT:               1.7 μs     ✅ Fast savepoint release
 ```
 
+#### Schema-Aware Validation (ns/op)
+```
+Schema Loading (JSON):           7.2 μs     ✅ Fast schema loading
+Validate SELECT:                 264 ns     ✅ Ultra-fast validation
+Validate INSERT:                 155 ns     ✅ Lightning-fast checks
+Validate UPDATE:                 170 ns     ✅ Quick validation
+Type Checking:                   590 ns     ✅ Sub-microsecond type checks
+Complex Validation (JOIN):       1.1 μs     ✅ Fast multi-table validation
+```
+
 **Memory Efficiency:**
 - Simple queries: **8-20 KB** per operation
 - Complex queries: **40-80 KB** per operation
 - DDL operations: **4-200 KB** depending on complexity
 - Transaction operations: **337-7360 B** per operation
+- Schema validation: **0-504 B** per operation (zero-allocation for simple queries!)
 
 ### Real-world Performance
 

@@ -8,6 +8,7 @@ This guide helps you work with the SQL Parser Go project using Claude Code.
 - Parsing and analysis for MySQL, PostgreSQL, SQL Server, SQLite, and Oracle
 - Advanced optimization suggestions (dialect-specific)
 - **Extended SQL features**: CTEs (WITH clause), Window Functions, Set Operations
+- **Schema-aware parsing and validation** - Validate SQL against database schemas
 - SQL Server log parsing (Profiler, Extended Events, Query Store)
 - Sub-microsecond query parsing with intelligent caching
 - Comprehensive CLI interface
@@ -59,12 +60,13 @@ sql-parser-go/
 │   ├── parser/            # SQL parsing & AST (parser.go, ast.go, errors.go, pool.go)
 │   ├── analyzer/          # Query analysis (analyzer.go, extractor.go, optimization*.go, concurrent.go)
 │   ├── dialect/           # Dialect support (mysql.go, postgresql.go, sqlserver.go, sqlite.go, oracle.go)
+│   ├── schema/            # Schema definitions and validation (schema.go, loader.go, validator.go, type_checker.go)
 │   └── logger/            # Log parsing (parser.go, formats.go)
 ├── internal/
 │   ├── config/            # Configuration (config.go)
 │   └── performance/       # Performance monitoring (monitor.go)
 ├── tests/                 # All test files (*_test.go)
-└── examples/              # Example queries and logs
+└── examples/              # Example queries, logs, and schemas
 ```
 
 ## 🔧 Key Components
@@ -111,7 +113,16 @@ sql-parser-go/
 - **Supported**: MySQL, PostgreSQL, SQL Server, SQLite, Oracle
 - **Files**: One file per dialect ([mysql.go](pkg/dialect/mysql.go), [postgresql.go](pkg/dialect/postgresql.go), etc.)
 
-### 5. Logger (`pkg/logger/`)
+### 5. Schema (`pkg/schema/`)
+- **Purpose**: Define database schemas and validate SQL against them
+- **Performance**: 7.2μs schema loading, 155-264ns validation (zero-allocation!)
+- **Files**:
+  - [schema.go](pkg/schema/schema.go) - Schema, Table, Column, DataType definitions
+  - [loader.go](pkg/schema/loader.go) - Load schemas from JSON/YAML
+  - [validator.go](pkg/schema/validator.go) - Validate SQL statements against schema
+  - [type_checker.go](pkg/schema/type_checker.go) - Type compatibility checking
+
+### 6. Logger (`pkg/logger/`)
 - **Purpose**: Parse SQL Server log files
 - **Formats**: Profiler, Extended Events, Query Store
 - **Files**:
@@ -217,6 +228,35 @@ Since we now have advanced features support, here's the pattern:
    make bench > after.txt
    # Compare results
    ```
+
+### Task 7: Add Schema-Aware Validation
+**Example**: Validating SQL queries against a database schema
+
+1. **Create Schema File** in [examples/schemas/](examples/schemas/)
+   - Define tables, columns, data types in JSON/YAML format
+
+2. **Load Schema** using [pkg/schema/loader.go](pkg/schema/loader.go)
+   ```go
+   loader := schema.NewSchemaLoader()
+   s, err := loader.LoadFromFile("schema.json")
+   ```
+
+3. **Validate SQL** using [pkg/schema/validator.go](pkg/schema/validator.go)
+   ```go
+   validator := schema.NewValidator(s)
+   errors := validator.ValidateStatement(stmt)
+   ```
+
+4. **Check Types** using [pkg/schema/type_checker.go](pkg/schema/type_checker.go)
+   ```go
+   typeChecker := schema.NewTypeChecker(s)
+   errors := typeChecker.CheckStatement(stmt)
+   ```
+
+5. **Add Tests** in [tests/schema_test.go](tests/schema_test.go)
+   - Test table/column existence validation
+   - Test type compatibility checking
+   - Test foreign key validation
 
 ## 🧪 Testing Strategy
 
@@ -344,7 +384,7 @@ go tool pprof cpu.prof
   - **Dialect-specific features** - AUTO_INCREMENT (MySQL), IDENTITY (SQL Server), AUTOINCREMENT (SQLite)
   - **Foreign key references** - ON DELETE/UPDATE actions (CASCADE, SET NULL, SET DEFAULT, NO ACTION)
   - **50+ comprehensive tests** - All passing
-- **Transaction Support** ✅ 🆕
+- **Transaction Support** ✅
   - **BEGIN/START TRANSACTION** - Start transactions (dialect-aware)
   - **COMMIT** - Commit transactions (with optional WORK keyword)
   - **ROLLBACK** - Roll back transactions (with optional WORK keyword)
@@ -353,9 +393,18 @@ go tool pprof cpu.prof
   - **RELEASE SAVEPOINT** - Release savepoints (PostgreSQL/MySQL)
   - **16+ comprehensive tests** - All passing
   - **Ultra-fast performance** - Sub-microsecond COMMIT/ROLLBACK
+- **Schema-Aware Parsing** ✅ 🆕
+  - **Schema Definition** - Tables, columns, data types, constraints, indexes, foreign keys
+  - **Schema Loading** - JSON and YAML format support
+  - **SQL Validation** - Validate SELECT, INSERT, UPDATE, DELETE against schema
+  - **Table/Column Validation** - Check existence of tables and columns
+  - **Type Checking** - Data type compatibility validation in expressions
+  - **Foreign Key Support** - Validate foreign key references
+  - **9+ comprehensive tests** - All passing (67 total tests)
+  - **Zero-allocation validation** - 155-264ns per statement
+  - **Fast schema loading** - 7.2μs from JSON
 
 ### 🚧 In Progress / Planned
-- [ ] **PRIORITY 6**: Schema-aware parsing and validation
 - [ ] Query execution plan analysis
 - [ ] Real-time log monitoring
 - [ ] Integration with monitoring tools

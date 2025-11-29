@@ -1,0 +1,136 @@
+{
+  "name": "test_db",
+  "tables": [
+    {
+      "name": "users",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT",
+          "primary_key": true
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR",
+          "length": 100
+        },
+        {
+          "name": "email",
+          "type": "VARCHAR",
+          "length": 255,
+          "unique": true
+        },
+        {
+          "name": "age",
+          "type": "INT",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP",
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_users_email",
+          "columns": ["email"],
+          "unique": true
+        },
+        {
+          "name": "idx_users_name",
+          "columns": ["name"]
+        }
+      ]
+    },
+    {
+      "name": "orders",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT",
+          "primary_key": true
+        },
+        {
+          "name": "user_id",
+          "type": "INT",
+          "foreign_key": true,
+          "fk_table": "users",
+          "fk_column": "id"
+        },
+        {
+          "name": "product_id",
+          "type": "INT"
+        },
+        {
+          "name": "quantity",
+          "type": "INT",
+          "default": 1
+        },
+        {
+          "name": "total",
+          "type": "DECIMAL",
+          "precision": 10,
+          "scale": 2
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR",
+          "length": 20,
+          "default": "pending"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_orders_user_id",
+          "columns": ["user_id"]
+        },
+        {
+          "name": "idx_orders_status",
+          "columns": ["status"]
+        }
+      ]
+    },
+    {
+      "name": "products",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT",
+          "primary_key": true
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR",
+          "length": 255
+        },
+        {
+          "name": "price",
+          "type": "DECIMAL",
+          "precision": 10,
+          "scale": 2
+        },
+        {
+          "name": "category",
+          "type": "VARCHAR",
+          "length": 100
+        },
+        {
+          "name": "stock",
+          "type": "INT",
+          "default": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_products_category",
+          "columns": ["category"]
+        }
+      ]
+    }
+  ]
+}

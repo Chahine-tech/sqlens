@@ -1,6 +1,3 @@
-// Package parser provides SQL parsing functionality for SQL Server queries.
-// It builds Abstract Syntax Trees (AST) from tokenized SQL input and supports
-// SELECT, INSERT, UPDATE, and DELETE statements with complex joins and expressions.
 package parser
 
 import "fmt"
