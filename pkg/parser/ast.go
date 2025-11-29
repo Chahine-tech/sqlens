@@ -547,3 +547,78 @@ func (cis *CreateIndexStatement) Type() string   { return "CreateIndexStatement"
 func (cis *CreateIndexStatement) String() string {
 	return fmt.Sprintf("CREATE INDEX %s ON %s", cis.IndexName, cis.Table.Name)
 }
+
+// Transaction Statements
+
+// BEGIN/START TRANSACTION Statement
+type BeginTransactionStatement struct {
+	BaseNode
+	UseStart bool // true if START TRANSACTION, false if BEGIN
+}
+
+func (bts *BeginTransactionStatement) statementNode() {}
+func (bts *BeginTransactionStatement) Type() string   { return "BeginTransactionStatement" }
+func (bts *BeginTransactionStatement) String() string {
+	if bts.UseStart {
+		return "START TRANSACTION"
+	}
+	return "BEGIN TRANSACTION"
+}
+
+// COMMIT Statement
+type CommitStatement struct {
+	BaseNode
+	Work bool // true if COMMIT WORK
+}
+
+func (cs *CommitStatement) statementNode() {}
+func (cs *CommitStatement) Type() string   { return "CommitStatement" }
+func (cs *CommitStatement) String() string {
+	if cs.Work {
+		return "COMMIT WORK"
+	}
+	return "COMMIT"
+}
+
+// ROLLBACK Statement
+type RollbackStatement struct {
+	BaseNode
+	Work        bool   // true if ROLLBACK WORK
+	ToSavepoint string // Optional: ROLLBACK TO SAVEPOINT name
+}
+
+func (rs *RollbackStatement) statementNode() {}
+func (rs *RollbackStatement) Type() string   { return "RollbackStatement" }
+func (rs *RollbackStatement) String() string {
+	if rs.ToSavepoint != "" {
+		return fmt.Sprintf("ROLLBACK TO SAVEPOINT %s", rs.ToSavepoint)
+	}
+	if rs.Work {
+		return "ROLLBACK WORK"
+	}
+	return "ROLLBACK"
+}
+
+// SAVEPOINT Statement
+type SavepointStatement struct {
+	BaseNode
+	Name string
+}
+
+func (ss *SavepointStatement) statementNode() {}
+func (ss *SavepointStatement) Type() string   { return "SavepointStatement" }
+func (ss *SavepointStatement) String() string {
+	return fmt.Sprintf("SAVEPOINT %s", ss.Name)
+}
+
+// RELEASE SAVEPOINT Statement
+type ReleaseSavepointStatement struct {
+	BaseNode
+	Name string
+}
+
+func (rss *ReleaseSavepointStatement) statementNode() {}
+func (rss *ReleaseSavepointStatement) Type() string   { return "ReleaseSavepointStatement" }
+func (rss *ReleaseSavepointStatement) String() string {
+	return fmt.Sprintf("RELEASE SAVEPOINT %s", rss.Name)
+}

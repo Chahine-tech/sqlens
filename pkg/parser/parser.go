@@ -137,6 +137,16 @@ func (p *Parser) ParseStatement() (Statement, error) {
 		return p.parseDropStatement()
 	case lexer.ALTER:
 		return p.parseAlterStatement()
+	case lexer.BEGIN, lexer.START:
+		return p.parseBeginTransaction()
+	case lexer.COMMIT:
+		return p.parseCommit()
+	case lexer.ROLLBACK:
+		return p.parseRollback()
+	case lexer.SAVEPOINT:
+		return p.parseSavepoint()
+	case lexer.RELEASE:
+		return p.parseReleaseSavepoint()
 	default:
 		return nil, fmt.Errorf("unsupported statement type: %s", p.curToken.Literal)
 	}

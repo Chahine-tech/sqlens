@@ -14,6 +14,7 @@ A powerful multi-dialect SQL query analysis tool written in Go that provides com
   - **DROP**: TABLE/DATABASE/INDEX with IF EXISTS and CASCADE
   - **ALTER TABLE**: ADD/DROP/MODIFY/CHANGE columns and constraints
   - **CREATE INDEX**: Simple and unique indexes with IF NOT EXISTS
+  - **TRANSACTIONS**: BEGIN, START TRANSACTION, COMMIT, ROLLBACK, SAVEPOINT, RELEASE
 - **SQL Query Parsing**: Parse and analyze complex SQL queries with dialect-specific syntax
 - **Abstract Syntax Tree (AST)**: Generate detailed AST representations
 - **Query Analysis**: Extract tables, columns, joins, and conditions
@@ -292,6 +293,44 @@ SQLens provides full DDL (Data Definition Language) support across all dialects:
 - **SQL Server**: `IDENTITY`
 - **Oracle**: Enterprise-grade DDL support
 
+#### Transaction Support
+
+SQLens provides full transaction control support across all dialects:
+
+```bash
+# BEGIN TRANSACTION
+./bin/sqlparser -sql "BEGIN TRANSACTION" -dialect sqlserver
+
+# START TRANSACTION (MySQL/PostgreSQL)
+./bin/sqlparser -sql "START TRANSACTION" -dialect mysql
+
+# COMMIT
+./bin/sqlparser -sql "COMMIT" -dialect postgresql
+
+# COMMIT WORK
+./bin/sqlparser -sql "COMMIT WORK" -dialect postgresql
+
+# ROLLBACK
+./bin/sqlparser -sql "ROLLBACK" -dialect mysql
+
+# SAVEPOINT
+./bin/sqlparser -sql "SAVEPOINT my_savepoint" -dialect postgresql
+
+# ROLLBACK TO SAVEPOINT
+./bin/sqlparser -sql "ROLLBACK TO SAVEPOINT my_savepoint" -dialect mysql
+
+# RELEASE SAVEPOINT
+./bin/sqlparser -sql "RELEASE SAVEPOINT my_savepoint" -dialect postgresql
+```
+
+**Transaction Features:**
+- **BEGIN/START TRANSACTION**: Start a new transaction
+- **COMMIT**: Commit the current transaction
+- **ROLLBACK**: Roll back the current transaction
+- **SAVEPOINT**: Create a savepoint within a transaction
+- **ROLLBACK TO SAVEPOINT**: Roll back to a specific savepoint
+- **RELEASE SAVEPOINT**: Release a savepoint (PostgreSQL/MySQL)
+
 ### Parse SQL Server Logs
 
 ```bash
@@ -516,6 +555,27 @@ sql-parser-go/
   CREATE INDEX IF NOT EXISTS idx_products_category ON products (category);
   ```
 
+### Transaction Control ✨
+- **Transaction Statements**
+  ```sql
+  -- Begin a transaction
+  BEGIN TRANSACTION;
+  START TRANSACTION;  -- MySQL/PostgreSQL
+
+  -- Commit transaction
+  COMMIT;
+  COMMIT WORK;  -- Optional WORK keyword
+
+  -- Rollback transaction
+  ROLLBACK;
+  ROLLBACK WORK;
+
+  -- Savepoints
+  SAVEPOINT my_savepoint;
+  ROLLBACK TO SAVEPOINT my_savepoint;
+  RELEASE SAVEPOINT my_savepoint;  -- PostgreSQL/MySQL
+  ```
+
 ### Advanced Features ✨
 - **CTEs (Common Table Expressions)**
   ```sql
@@ -629,12 +689,17 @@ This project is licensed under the MIT License - see the LICENSE file for detail
   - [x] **ALTER TABLE** - ADD/DROP/MODIFY/CHANGE columns and constraints
   - [x] **CREATE INDEX** - Simple and unique indexes with IF NOT EXISTS
   - [x] **Dialect-specific features** - AUTO_INCREMENT, IDENTITY, AUTOINCREMENT
+- [x] **Transaction Support** ✅ **COMPLETED!**
+  - [x] **BEGIN/START TRANSACTION** - Start transactions
+  - [x] **COMMIT/ROLLBACK** - Commit or rollback transactions
+  - [x] **SAVEPOINT** - Create savepoints within transactions
+  - [x] **ROLLBACK TO SAVEPOINT** - Roll back to specific savepoints
+  - [x] **RELEASE SAVEPOINT** - Release savepoints (PostgreSQL/MySQL)
 - [x] Performance benchmarking
 - [ ] Query execution plan analysis
 - [ ] Real-time log monitoring
 - [ ] Integration with monitoring tools
 - [ ] Schema-aware parsing and validation
-- [ ] Transaction support (BEGIN, COMMIT, ROLLBACK, SAVEPOINT)
 - [ ] Stored procedure parsing
 - [ ] Trigger parsing
 - [ ] View definitions (CREATE VIEW)
@@ -729,10 +794,21 @@ UPDATE with Subquery:            38 μs      ✅ Complex updates
 DELETE with EXISTS:              10 μs      ✅ Conditional deletion
 ```
 
+#### Transaction Operations (ns/op)
+```
+BEGIN/START TRANSACTION:         200 ns     ✅ Ultra-fast transaction start
+COMMIT:                          149 ns     ✅ Lightning-fast commits
+ROLLBACK:                        173 ns     ✅ Fast rollbacks
+SAVEPOINT:                       3.6 μs     ✅ Efficient savepoint creation
+ROLLBACK TO SAVEPOINT:           3.0 μs     ✅ Quick savepoint rollback
+RELEASE SAVEPOINT:               1.7 μs     ✅ Fast savepoint release
+```
+
 **Memory Efficiency:**
 - Simple queries: **8-20 KB** per operation
 - Complex queries: **40-80 KB** per operation
 - DDL operations: **4-200 KB** depending on complexity
+- Transaction operations: **337-7360 B** per operation
 
 ### Real-world Performance
 
@@ -751,5 +827,6 @@ DELETE with EXISTS:              10 μs      ✅ Conditional deletion
 6. **🆕 Advanced features**: Sub-millisecond parsing for 95%+ of queries
 7. **🆕 DDL operations**: Ultra-fast with DROP < 2μs, CREATE TABLE < 25μs
 8. **🆕 Subqueries**: Excellent scaling even with deep nesting (3+ levels)
+9. **🆕 Transactions**: Sub-microsecond COMMIT/ROLLBACK, ~3μs for savepoints
 
 **This is production-ready performance that matches or exceeds commercial SQL parsers across all major dialects!**

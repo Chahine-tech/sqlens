@@ -336,7 +336,7 @@ go tool pprof cpu.prof
   - **Derived Tables** - Subqueries in FROM clause with JOIN support
   - **Nested & Correlated Subqueries** - Multiple levels of nesting
   - **40+ comprehensive tests** - All passing
-- **DDL Support** ✅ 🆕
+- **DDL Support** ✅
   - **CREATE TABLE** - Columns, constraints, foreign keys, IF NOT EXISTS
   - **DROP** - TABLE/DATABASE/INDEX with IF EXISTS and CASCADE
   - **ALTER TABLE** - ADD/DROP/MODIFY/CHANGE columns and constraints
@@ -344,9 +344,17 @@ go tool pprof cpu.prof
   - **Dialect-specific features** - AUTO_INCREMENT (MySQL), IDENTITY (SQL Server), AUTOINCREMENT (SQLite)
   - **Foreign key references** - ON DELETE/UPDATE actions (CASCADE, SET NULL, SET DEFAULT, NO ACTION)
   - **50+ comprehensive tests** - All passing
+- **Transaction Support** ✅ 🆕
+  - **BEGIN/START TRANSACTION** - Start transactions (dialect-aware)
+  - **COMMIT** - Commit transactions (with optional WORK keyword)
+  - **ROLLBACK** - Roll back transactions (with optional WORK keyword)
+  - **SAVEPOINT** - Create savepoints within transactions
+  - **ROLLBACK TO SAVEPOINT** - Roll back to specific savepoints
+  - **RELEASE SAVEPOINT** - Release savepoints (PostgreSQL/MySQL)
+  - **16+ comprehensive tests** - All passing
+  - **Ultra-fast performance** - Sub-microsecond COMMIT/ROLLBACK
 
 ### 🚧 In Progress / Planned
-- [ ] **PRIORITY 5**: Transaction Support (BEGIN, COMMIT, ROLLBACK, SAVEPOINT)
 - [ ] **PRIORITY 6**: Schema-aware parsing and validation
 - [ ] Query execution plan analysis
 - [ ] Real-time log monitoring

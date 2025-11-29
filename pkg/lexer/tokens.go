@@ -88,6 +88,16 @@ const (
 	DATABASE       // DATABASE
 	SCHEMA         // SCHEMA
 
+	// Transaction Keywords
+	BEGIN       // BEGIN TRANSACTION
+	START       // START TRANSACTION
+	COMMIT      // COMMIT
+	ROLLBACK    // ROLLBACK
+	SAVEPOINT   // SAVEPOINT
+	RELEASE     // RELEASE SAVEPOINT
+	WORK        // WORK (optional in COMMIT/ROLLBACK)
+	TRANSACTION // TRANSACTION
+
 	// Operators
 	ASSIGN  // =
 	EQ      // ==
@@ -190,6 +200,14 @@ var keywords = map[string]TokenType{
 	"IF":             IF,
 	"DATABASE":       DATABASE,
 	"SCHEMA":         SCHEMA,
+	"BEGIN":          BEGIN,
+	"START":          START,
+	"COMMIT":         COMMIT,
+	"ROLLBACK":       ROLLBACK,
+	"SAVEPOINT":      SAVEPOINT,
+	"RELEASE":        RELEASE,
+	"WORK":           WORK,
+	"TRANSACTION":    TRANSACTION,
 }
 
 type Token struct {
@@ -374,6 +392,22 @@ func (tt TokenType) String() string {
 		return "SLASH"
 	case PERCENT:
 		return "PERCENT"
+	case BEGIN:
+		return "BEGIN"
+	case START:
+		return "START"
+	case COMMIT:
+		return "COMMIT"
+	case ROLLBACK:
+		return "ROLLBACK"
+	case SAVEPOINT:
+		return "SAVEPOINT"
+	case RELEASE:
+		return "RELEASE"
+	case WORK:
+		return "WORK"
+	case TRANSACTION:
+		return "TRANSACTION"
 	default:
 		return "UNKNOWN"
 	}
