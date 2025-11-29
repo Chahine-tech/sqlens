@@ -347,11 +347,47 @@ func (p *Parser) parseFromClause() (*FromClause, error) {
 }
 
 func (p *Parser) parseTableReference() (*TableReference, error) {
+	table := &TableReference{}
+
+	// Check for derived table: (SELECT ...) AS alias
+	if p.curTokenIs(lexer.LPAREN) {
+		p.nextToken()
+
+		// Check if this is a subquery
+		if p.curTokenIs(lexer.SELECT) {
+			subquery, err := p.parseSelectStatement()
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse derived table subquery: %v", err)
+			}
+
+			if !p.curTokenIs(lexer.RPAREN) {
+				return nil, fmt.Errorf("expected ')' to close derived table, got %s", p.curToken.Literal)
+			}
+			p.nextToken()
+
+			table.Subquery = subquery
+
+			// Alias is required for derived tables (in most SQL dialects)
+			if p.curTokenIs(lexer.AS) {
+				p.nextToken()
+			}
+
+			if !p.curTokenIs(lexer.IDENT) {
+				return nil, fmt.Errorf("derived table requires an alias, got %s", p.curToken.Literal)
+			}
+			table.Alias = p.curToken.Literal
+			p.nextToken()
+
+			return table, nil
+		} else {
+			return nil, fmt.Errorf("expected SELECT in derived table, got %s", p.curToken.Literal)
+		}
+	}
+
+	// Regular table reference
 	if !p.curTokenIs(lexer.IDENT) {
 		return nil, fmt.Errorf("expected table name, got %s", p.curToken.Literal)
 	}
-
-	table := &TableReference{}
 
 	firstIdent := p.curToken.Literal
 	p.nextToken()
@@ -701,6 +737,15 @@ func (p *Parser) parsePrimaryExpression() (Expression, error) {
 		return p.parseGroupedExpression()
 	case lexer.CASE:
 		return p.parseCaseExpression()
+	case lexer.NOT:
+		// Check if it's NOT EXISTS
+		p.nextToken()
+		if p.curTokenIs(lexer.EXISTS) {
+			return p.parseExistsExpression(true)
+		}
+		return nil, fmt.Errorf("unexpected token after NOT: %s", p.curToken.Literal)
+	case lexer.EXISTS:
+		return p.parseExistsExpression(false)
 	default:
 		return nil, fmt.Errorf("unexpected token in expression: %s", p.curToken.Literal)
 	}
@@ -816,6 +861,21 @@ func (p *Parser) parseStringLiteral() (Expression, error) {
 func (p *Parser) parseGroupedExpression() (Expression, error) {
 	p.nextToken()
 
+	// Check if this is a subquery (starts with SELECT)
+	if p.curTokenIs(lexer.SELECT) {
+		subquery, err := p.parseSelectStatement()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse subquery: %v", err)
+		}
+
+		if !p.curTokenIs(lexer.RPAREN) {
+			return nil, fmt.Errorf("expected ')' to close subquery, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+
+		return &SubqueryExpression{Query: subquery}, nil
+	}
+
 	exp, err := p.parseExpression()
 	if err != nil {
 		return nil, err
@@ -827,6 +887,39 @@ func (p *Parser) parseGroupedExpression() (Expression, error) {
 	p.nextToken()
 
 	return exp, nil
+}
+
+func (p *Parser) parseExistsExpression(not bool) (Expression, error) {
+	// Current token is EXISTS
+	p.nextToken()
+
+	// Expect opening parenthesis
+	if !p.curTokenIs(lexer.LPAREN) {
+		return nil, fmt.Errorf("expected '(' after EXISTS, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Expect SELECT
+	if !p.curTokenIs(lexer.SELECT) {
+		return nil, fmt.Errorf("expected SELECT after EXISTS (, got %s", p.curToken.Literal)
+	}
+
+	// Parse the subquery
+	subquery, err := p.parseSelectStatement()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse subquery in EXISTS: %v", err)
+	}
+
+	// Expect closing parenthesis
+	if !p.curTokenIs(lexer.RPAREN) {
+		return nil, fmt.Errorf("expected ')' to close EXISTS subquery, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	return &ExistsExpression{
+		Subquery: subquery,
+		Not:      not,
+	}, nil
 }
 
 func (p *Parser) isInfixOperator(tokenType lexer.TokenType) bool {

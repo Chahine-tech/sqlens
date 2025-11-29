@@ -283,23 +283,21 @@ func TestComplexDMLScenarios(t *testing.T) {
 		sql     string
 		wantErr bool
 	}{
-		// TODO: Subqueries in VALUES not yet supported - need to enhance parseExpression
-		// {
-		// 	name:    "INSERT with subquery in VALUES",
-		// 	sql:     `INSERT INTO user_stats (user_id, order_count) VALUES (1, (SELECT COUNT(*) FROM orders WHERE user_id = 1))`,
-		// 	wantErr: false,
-		// },
+		{
+			name:    "INSERT with subquery in VALUES",
+			sql:     `INSERT INTO user_stats (user_id, order_count) VALUES (1, (SELECT COUNT(*) FROM orders WHERE user_id = 1))`,
+			wantErr: false,
+		},
 		{
 			name:    "UPDATE with CASE expression",
 			sql:     `UPDATE users SET status = CASE WHEN credits > 1000 THEN 'premium' WHEN credits > 100 THEN 'standard' ELSE 'basic' END`,
 			wantErr: false,
 		},
-		// TODO: EXISTS not yet supported in parseExpression
-		// {
-		// 	name:    "DELETE with EXISTS",
-		// 	sql:     `DELETE FROM users WHERE EXISTS (SELECT 1 FROM orders WHERE orders.user_id = users.id AND total > 1000)`,
-		// 	wantErr: false,
-		// },
+		{
+			name:    "DELETE with EXISTS",
+			sql:     `DELETE FROM users WHERE EXISTS (SELECT 1 FROM orders WHERE orders.user_id = users.id AND total > 1000)`,
+			wantErr: false,
+		},
 		{
 			name:    "INSERT with multiple value lists",
 			sql:     `INSERT INTO products (name, price, category) VALUES ('Product A', 10.99, 'electronics'), ('Product B', 20.50, 'books'), ('Product C', 15.00, 'clothing')`,

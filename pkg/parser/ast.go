@@ -61,9 +61,10 @@ func (fc *FromClause) String() string { return "FROM Clause" }
 // Table Reference
 type TableReference struct {
 	BaseNode
-	Schema string
-	Name   string
-	Alias  string
+	Schema   string
+	Name     string
+	Alias    string
+	Subquery *SelectStatement // For derived tables: (SELECT ...) AS alias
 }
 
 func (tr *TableReference) expressionNode() {}
