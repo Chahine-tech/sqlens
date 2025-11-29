@@ -59,6 +59,18 @@ func (a *Analyzer) Analyze(stmt parser.Statement) QueryAnalysis {
 	case *parser.DeleteStatement:
 		a.analyzeDeleteStatement(s)
 		a.analysis.QueryType = "DELETE"
+	case *parser.CreateTableStatement:
+		a.analyzeCreateTableStatement(s)
+		a.analysis.QueryType = "CREATE TABLE"
+	case *parser.DropStatement:
+		a.analyzeDropStatement(s)
+		a.analysis.QueryType = "DROP " + s.ObjectType
+	case *parser.AlterTableStatement:
+		a.analyzeAlterTableStatement(s)
+		a.analysis.QueryType = "ALTER TABLE"
+	case *parser.CreateIndexStatement:
+		a.analyzeCreateIndexStatement(s)
+		a.analysis.QueryType = "CREATE INDEX"
 	}
 
 	a.analysis.Complexity = a.calculateComplexity()
@@ -347,4 +359,64 @@ func (a *Analyzer) hasCartesianProduct(stmt *parser.SelectStatement) bool {
 	}
 
 	return false
+}
+// DDL Statement Analyzers
+
+func (a *Analyzer) analyzeCreateTableStatement(stmt *parser.CreateTableStatement) {
+	a.analysis.Tables = append(a.analysis.Tables, TableInfo{
+		Schema: stmt.Table.Schema,
+		Name:   stmt.Table.Name,
+		Usage:  "CREATE",
+	})
+
+	// Analyze columns
+	for _, col := range stmt.Columns {
+		a.analysis.Columns = append(a.analysis.Columns, ColumnInfo{
+			Name:  col.Name,
+			Usage: "CREATE",
+		})
+	}
+}
+
+func (a *Analyzer) analyzeDropStatement(stmt *parser.DropStatement) {
+	if stmt.ObjectType == "TABLE" {
+		a.analysis.Tables = append(a.analysis.Tables, TableInfo{
+			Name:  stmt.ObjectName,
+			Usage: "DROP",
+		})
+	}
+}
+
+func (a *Analyzer) analyzeAlterTableStatement(stmt *parser.AlterTableStatement) {
+	a.analysis.Tables = append(a.analysis.Tables, TableInfo{
+		Schema: stmt.Table.Schema,
+		Name:   stmt.Table.Name,
+		Usage:  "ALTER",
+	})
+
+	// Analyze action
+	if stmt.Action != nil {
+		if stmt.Action.Column != nil {
+			a.analysis.Columns = append(a.analysis.Columns, ColumnInfo{
+				Name:  stmt.Action.Column.Name,
+				Usage: "ALTER " + stmt.Action.ActionType,
+			})
+		}
+	}
+}
+
+func (a *Analyzer) analyzeCreateIndexStatement(stmt *parser.CreateIndexStatement) {
+	a.analysis.Tables = append(a.analysis.Tables, TableInfo{
+		Schema: stmt.Table.Schema,
+		Name:   stmt.Table.Name,
+		Usage:  "INDEX",
+	})
+
+	// Analyze indexed columns
+	for _, col := range stmt.Columns {
+		a.analysis.Columns = append(a.analysis.Columns, ColumnInfo{
+			Name:  col,
+			Usage: "INDEX",
+		})
+	}
 }

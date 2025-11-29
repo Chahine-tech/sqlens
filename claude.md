@@ -318,7 +318,6 @@ go tool pprof cpu.prof
 ### ✅ Completed
 - Multi-dialect support (5 dialects)
 - Advanced optimization suggestions
-- Subquery parsing and optimization
 - Performance benchmarking
 - Dialect-specific identifier quoting
 - **Extended SQL features** ✨
@@ -330,15 +329,28 @@ go tool pprof cpu.prof
   - **INSERT** - VALUES, multiple rows, INSERT...SELECT
   - **UPDATE** - Multiple columns, WHERE, ORDER BY/LIMIT (MySQL/SQLite)
   - **DELETE** - WHERE, ORDER BY/LIMIT (MySQL/SQLite)
+- **Comprehensive Subquery Support** ✅
+  - **Scalar Subqueries** - In WHERE, SELECT, INSERT VALUES, UPDATE SET
+  - **EXISTS / NOT EXISTS** - Full support in all statement types
+  - **IN / NOT IN with Subqueries** - Complete implementation
+  - **Derived Tables** - Subqueries in FROM clause with JOIN support
+  - **Nested & Correlated Subqueries** - Multiple levels of nesting
+  - **40+ comprehensive tests** - All passing
+- **DDL Support** ✅ 🆕
+  - **CREATE TABLE** - Columns, constraints, foreign keys, IF NOT EXISTS
+  - **DROP** - TABLE/DATABASE/INDEX with IF EXISTS and CASCADE
+  - **ALTER TABLE** - ADD/DROP/MODIFY/CHANGE columns and constraints
+  - **CREATE INDEX** - Simple and unique indexes with IF NOT EXISTS
+  - **Dialect-specific features** - AUTO_INCREMENT (MySQL), IDENTITY (SQL Server), AUTOINCREMENT (SQLite)
+  - **Foreign key references** - ON DELETE/UPDATE actions (CASCADE, SET NULL, SET DEFAULT, NO ACTION)
+  - **50+ comprehensive tests** - All passing
 
 ### 🚧 In Progress / Planned
-- [ ] Subqueries in expressions (VALUES, EXISTS, IN with subquery)
+- [ ] **PRIORITY 5**: Transaction Support (BEGIN, COMMIT, ROLLBACK, SAVEPOINT)
+- [ ] **PRIORITY 6**: Schema-aware parsing and validation
 - [ ] Query execution plan analysis
 - [ ] Real-time log monitoring
 - [ ] Integration with monitoring tools
-- [ ] More DDL support (CREATE TABLE, ALTER, DROP, etc.)
-- [ ] Schema-aware parsing and validation
-- [ ] Transaction parsing (BEGIN, COMMIT, ROLLBACK)
 - [ ] Stored procedure parsing
 - [ ] Materialized views
 - [ ] Triggers

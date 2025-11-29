@@ -131,6 +131,12 @@ func (p *Parser) ParseStatement() (Statement, error) {
 		return p.parseUpdateStatement()
 	case lexer.DELETE:
 		return p.parseDeleteStatement()
+	case lexer.CREATE:
+		return p.parseCreateStatement()
+	case lexer.DROP:
+		return p.parseDropStatement()
+	case lexer.ALTER:
+		return p.parseAlterStatement()
 	default:
 		return nil, fmt.Errorf("unsupported statement type: %s", p.curToken.Literal)
 	}
@@ -729,6 +735,11 @@ func (p *Parser) parsePrimaryExpression() (Expression, error) {
 		return p.parseNumberLiteral()
 	case lexer.STRING:
 		return p.parseStringLiteral()
+	case lexer.NULL:
+		// Handle NULL literal
+		expr := &Literal{Value: nil}
+		p.nextToken()
+		return expr, nil
 	case lexer.ASTERISK:
 		expr := &StarExpression{}
 		p.nextToken()
@@ -926,7 +937,7 @@ func (p *Parser) isInfixOperator(tokenType lexer.TokenType) bool {
 	switch tokenType {
 	case lexer.ASSIGN, lexer.EQ, lexer.NOT_EQ, lexer.LT, lexer.GT, lexer.LTE, lexer.GTE,
 		lexer.AND, lexer.OR, lexer.PLUS, lexer.MINUS, lexer.ASTERISK, lexer.SLASH,
-		lexer.LIKE, lexer.IN:
+		lexer.LIKE, lexer.IN, lexer.IS:
 		return true
 	default:
 		return false

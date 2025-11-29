@@ -41,6 +41,26 @@ func TestCTEParsing(t *testing.T) {
 			JOIN orders_cte o ON u.id = o.user_id`,
 			wantErr: false,
 		},
+		{
+			name: "CTE with IS NULL",
+			sql: `WITH cte AS (
+				SELECT id, name FROM employees WHERE manager_id IS NULL
+			)
+			SELECT * FROM cte`,
+			wantErr: false,
+		},
+		{
+			name: "Recursive CTE with UNION ALL",
+			sql: `WITH RECURSIVE employee_hierarchy AS (
+				SELECT id, name, manager_id FROM employees WHERE manager_id IS NULL
+				UNION ALL
+				SELECT e.id, e.name, e.manager_id
+				FROM employees e
+				INNER JOIN employee_hierarchy eh ON e.manager_id = eh.id
+			)
+			SELECT * FROM employee_hierarchy`,
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -441,3 +461,56 @@ func TestCaseExpressions(t *testing.T) {
 	// Need to implement expression parsing with boundary detection
 }
 */
+
+// Test IS NULL operator
+func TestIsNullOperator(t *testing.T) {
+	tests := []struct {
+		name    string
+		sql     string
+		wantErr bool
+	}{
+		{
+			name:    "Simple IS NULL",
+			sql:     `SELECT * FROM users WHERE email IS NULL`,
+			wantErr: false,
+		},
+		{
+			name:    "IS NULL in WHERE with AND",
+			sql:     `SELECT * FROM employees WHERE manager_id IS NULL AND active = 1`,
+			wantErr: false,
+		},
+		{
+			name:    "IS NULL in CTE",
+			sql:     `WITH cte AS (SELECT id FROM users WHERE email IS NULL) SELECT * FROM cte`,
+			wantErr: false,
+		},
+		{
+			name: "IS NULL in subquery",
+			sql:  `SELECT * FROM users WHERE id IN (SELECT user_id FROM orders WHERE cancelled_at IS NULL)`,
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := parser.NewWithDialect(context.Background(), tt.sql, dialect.GetDialect("postgresql"))
+			stmt, err := p.ParseStatement()
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("IS NULL parsing error = %v, wantErr %v", err, tt.wantErr)
+				if err != nil {
+					t.Errorf("Error: %v", err)
+				}
+				return
+			}
+
+			if !tt.wantErr && stmt == nil {
+				t.Error("Expected statement, got nil")
+			}
+
+			if !tt.wantErr {
+				t.Logf("Successfully parsed IS NULL: %s", tt.sql)
+			}
+		})
+	}
+}

@@ -68,6 +68,26 @@ const (
 	ELSE      // CASE expression
 	END       // CASE/CTE end
 
+	// DDL Keywords
+	PRIMARY        // PRIMARY KEY
+	FOREIGN        // FOREIGN KEY
+	KEY            // KEY
+	CONSTRAINT     // CONSTRAINT
+	UNIQUE         // UNIQUE
+	INDEX          // INDEX
+	AUTO_INCREMENT // AUTO_INCREMENT (MySQL)
+	AUTOINCREMENT  // AUTOINCREMENT (SQLite)
+	IDENTITY       // IDENTITY (SQL Server)
+	DEFAULT        // DEFAULT value
+	REFERENCES     // FOREIGN KEY REFERENCES
+	ADD            // ALTER TABLE ADD
+	MODIFY         // ALTER TABLE MODIFY
+	CHANGE         // ALTER TABLE CHANGE (MySQL)
+	COLUMN         // COLUMN
+	IF             // IF EXISTS/IF NOT EXISTS
+	DATABASE       // DATABASE
+	SCHEMA         // SCHEMA
+
 	// Operators
 	ASSIGN  // =
 	EQ      // ==
@@ -147,11 +167,29 @@ var keywords = map[string]TokenType{
 	"ROW":       ROW,
 	"INTERSECT": INTERSECT,
 	"EXCEPT":    EXCEPT,
-	"CASE":      CASE,
-	"WHEN":      WHEN,
-	"THEN":      THEN,
-	"ELSE":      ELSE,
-	"END":       END,
+	"CASE":           CASE,
+	"WHEN":           WHEN,
+	"THEN":           THEN,
+	"ELSE":           ELSE,
+	"END":            END,
+	"PRIMARY":        PRIMARY,
+	"FOREIGN":        FOREIGN,
+	"KEY":            KEY,
+	"CONSTRAINT":     CONSTRAINT,
+	"UNIQUE":         UNIQUE,
+	"INDEX":          INDEX,
+	"AUTO_INCREMENT": AUTO_INCREMENT,
+	"AUTOINCREMENT":  AUTOINCREMENT,
+	"IDENTITY":       IDENTITY,
+	"DEFAULT":        DEFAULT,
+	"REFERENCES":     REFERENCES,
+	"ADD":            ADD,
+	"MODIFY":         MODIFY,
+	"CHANGE":         CHANGE,
+	"COLUMN":         COLUMN,
+	"IF":             IF,
+	"DATABASE":       DATABASE,
+	"SCHEMA":         SCHEMA,
 }
 
 type Token struct {

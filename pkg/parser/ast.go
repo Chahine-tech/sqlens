@@ -323,7 +323,7 @@ type CommonTableExpression struct {
 	BaseNode
 	Name    string
 	Columns []string // Optional column names
-	Query   *SelectStatement
+	Query   Statement // Can be SelectStatement or SetOperation (for recursive CTEs with UNION)
 }
 
 func (cte *CommonTableExpression) Type() string   { return "CommonTableExpression" }
@@ -429,3 +429,120 @@ type WhenClause struct {
 
 func (wc *WhenClause) Type() string   { return "WhenClause" }
 func (wc *WhenClause) String() string { return "WHEN clause" }
+// DDL Statements
+
+// CREATE TABLE Statement
+type CreateTableStatement struct {
+	BaseNode
+	Table       TableReference
+	Columns     []*ColumnDefinition
+	Constraints []*TableConstraint
+	IfNotExists bool
+}
+
+func (cts *CreateTableStatement) statementNode() {}
+func (cts *CreateTableStatement) Type() string   { return "CreateTableStatement" }
+func (cts *CreateTableStatement) String() string {
+	return fmt.Sprintf("CREATE TABLE %s", cts.Table.Name)
+}
+
+// Column Definition
+type ColumnDefinition struct {
+	BaseNode
+	Name          string
+	DataType      string
+	Length        int    // For VARCHAR(255), etc.
+	Precision     int    // For DECIMAL(10,2)
+	Scale         int    // For DECIMAL(10,2)
+	NotNull       bool
+	PrimaryKey    bool
+	Unique        bool
+	AutoIncrement bool
+	Default       Expression
+	References    *ForeignKeyReference // For inline FOREIGN KEY
+}
+
+func (cd *ColumnDefinition) Type() string   { return "ColumnDefinition" }
+func (cd *ColumnDefinition) String() string { return fmt.Sprintf("%s %s", cd.Name, cd.DataType) }
+
+// Table Constraint (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK)
+type TableConstraint struct {
+	BaseNode
+	Name           string // Optional constraint name
+	ConstraintType string // PRIMARY_KEY, FOREIGN_KEY, UNIQUE, CHECK
+	Columns        []string
+	References     *ForeignKeyReference // For FOREIGN KEY
+	Check          Expression           // For CHECK constraint
+}
+
+func (tc *TableConstraint) Type() string   { return "TableConstraint" }
+func (tc *TableConstraint) String() string { return fmt.Sprintf("%s constraint", tc.ConstraintType) }
+
+// Foreign Key Reference
+type ForeignKeyReference struct {
+	BaseNode
+	Table    string
+	Columns  []string
+	OnDelete string // CASCADE, SET NULL, etc.
+	OnUpdate string
+}
+
+func (fkr *ForeignKeyReference) Type() string   { return "ForeignKeyReference" }
+func (fkr *ForeignKeyReference) String() string { return fmt.Sprintf("REFERENCES %s", fkr.Table) }
+
+// DROP Statement (TABLE, DATABASE, INDEX)
+type DropStatement struct {
+	BaseNode
+	ObjectType string // TABLE, DATABASE, INDEX
+	ObjectName string
+	IfExists   bool
+	Cascade    bool
+}
+
+func (ds *DropStatement) statementNode() {}
+func (ds *DropStatement) Type() string   { return "DropStatement" }
+func (ds *DropStatement) String() string {
+	return fmt.Sprintf("DROP %s %s", ds.ObjectType, ds.ObjectName)
+}
+
+// ALTER TABLE Statement
+type AlterTableStatement struct {
+	BaseNode
+	Table  TableReference
+	Action *AlterAction
+}
+
+func (ats *AlterTableStatement) statementNode() {}
+func (ats *AlterTableStatement) Type() string   { return "AlterTableStatement" }
+func (ats *AlterTableStatement) String() string {
+	return fmt.Sprintf("ALTER TABLE %s", ats.Table.Name)
+}
+
+// ALTER Action
+type AlterAction struct {
+	BaseNode
+	ActionType string            // ADD, DROP, MODIFY, CHANGE, RENAME
+	Column     *ColumnDefinition // For ADD/MODIFY
+	ColumnName string            // For DROP/CHANGE
+	NewColumn  *ColumnDefinition // For CHANGE
+	Constraint *TableConstraint  // For ADD constraint
+}
+
+func (aa *AlterAction) Type() string   { return "AlterAction" }
+func (aa *AlterAction) String() string { return fmt.Sprintf("ALTER %s", aa.ActionType) }
+
+// CREATE INDEX Statement
+type CreateIndexStatement struct {
+	BaseNode
+	IndexName   string
+	Table       TableReference
+	Columns     []string
+	Unique      bool
+	IfNotExists bool
+}
+
+func (cis *CreateIndexStatement) statementNode() {}
+func (cis *CreateIndexStatement) Type() string   { return "CreateIndexStatement" }
+func (cis *CreateIndexStatement) String() string {
+	return fmt.Sprintf("CREATE INDEX %s ON %s", cis.IndexName, cis.Table.Name)
+}

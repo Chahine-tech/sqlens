@@ -108,7 +108,14 @@ func (p *Parser) parseCommonTableExpression() (*CommonTableExpression, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse CTE query: %v", err)
 	}
-	cte.Query = selectStmt
+
+	// Check for set operations (UNION, INTERSECT, EXCEPT) in CTE
+	// This is important for recursive CTEs that use UNION ALL
+	query, err := p.parseSetOperation(selectStmt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse set operation in CTE: %v", err)
+	}
+	cte.Query = query // Can be SelectStatement or SetOperation
 
 	// Expect closing parenthesis
 	if !p.curTokenIs(lexer.RPAREN) {
@@ -121,13 +128,20 @@ func (p *Parser) parseCommonTableExpression() (*CommonTableExpression, error) {
 
 // parseSetOperation parses UNION, INTERSECT, EXCEPT operations
 func (p *Parser) parseSetOperation(left Statement) (Statement, error) {
-	// Check if next token is a set operator
-	if !p.peekTokenIs(lexer.UNION) && !p.peekTokenIs(lexer.INTERSECT) && !p.peekTokenIs(lexer.EXCEPT) {
+	// Check if current token OR next token is a set operator
+	// Current token check is needed when called from CTE parsing
+	isSetOp := p.curTokenIs(lexer.UNION) || p.curTokenIs(lexer.INTERSECT) || p.curTokenIs(lexer.EXCEPT) ||
+		p.peekTokenIs(lexer.UNION) || p.peekTokenIs(lexer.INTERSECT) || p.peekTokenIs(lexer.EXCEPT)
+
+	if !isSetOp {
 		// No set operation, return the original statement
 		return left, nil
 	}
 
-	p.nextToken() // move to UNION/INTERSECT/EXCEPT
+	// If peek token is set operator, move to it
+	if p.peekTokenIs(lexer.UNION) || p.peekTokenIs(lexer.INTERSECT) || p.peekTokenIs(lexer.EXCEPT) {
+		p.nextToken() // move to UNION/INTERSECT/EXCEPT
+	}
 
 	setOp := &SetOperation{
 		Left:     left,
