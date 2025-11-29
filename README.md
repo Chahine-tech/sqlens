@@ -14,7 +14,12 @@ A powerful multi-dialect SQL query analysis tool written in Go that provides com
 - **Abstract Syntax Tree (AST)**: Generate detailed AST representations
 - **Query Analysis**: Extract tables, columns, joins, and conditions
 - **Advanced Optimization Suggestions**: Get intelligent, dialect-specific recommendations for query improvements
-- **Subquery Support**: Parse and analyze complex subqueries in WHERE clauses
+- **Comprehensive Subquery Support**: Full support for subqueries in all clauses
+  - **Scalar Subqueries**: In WHERE, SELECT, INSERT VALUES, UPDATE SET
+  - **EXISTS / NOT EXISTS**: Full implementation across all statement types
+  - **IN / NOT IN with Subqueries**: Complete support
+  - **Derived Tables**: Subqueries in FROM clause with JOIN support
+  - **Nested & Correlated Subqueries**: Multiple levels of nesting
 - **Advanced SQL Features**:
   - **CTEs (WITH clause)**: Common Table Expressions with recursive support
   - **Window Functions**: ROW_NUMBER, RANK, PARTITION BY, ORDER BY, window frames
@@ -138,9 +143,77 @@ See [DIALECT_SUPPORT.md](DIALECT_SUPPORT.md) for detailed information about dial
 ./bin/sqlparser -sql "SELECT data FROM logs WHERE json_extract(data, '$.type') = 'error'" -dialect postgresql
 ```
 
-#### Subquery Optimization Detection
+#### Advanced Subquery Support
+
+SQLens provides comprehensive subquery support across all SQL dialects:
+
+#### Subqueries in WHERE Clause
 ```bash
-./bin/sqlparser -sql "SELECT name FROM users WHERE id IN (SELECT user_id FROM orders)" -dialect postgresql
+# Scalar subquery
+./bin/sqlparser -sql "SELECT * FROM users WHERE salary > (SELECT AVG(salary) FROM employees)" -dialect postgresql
+
+# EXISTS subquery
+./bin/sqlparser -sql "SELECT * FROM users WHERE EXISTS (SELECT 1 FROM orders WHERE orders.user_id = users.id)" -dialect mysql
+
+# NOT EXISTS subquery
+./bin/sqlparser -sql "DELETE FROM users WHERE NOT EXISTS (SELECT 1 FROM orders WHERE orders.user_id = users.id)" -dialect mysql
+
+# IN with subquery
+./bin/sqlparser -sql "SELECT name FROM users WHERE id IN (SELECT user_id FROM orders WHERE total > 1000)" -dialect postgresql
+
+# NOT IN with subquery
+./bin/sqlparser -sql "SELECT * FROM users WHERE id NOT IN (SELECT user_id FROM banned_users)" -dialect mysql
+```
+
+#### Subqueries in SELECT Clause
+```bash
+# Scalar subquery in SELECT
+./bin/sqlparser -sql "SELECT id, name, (SELECT COUNT(*) FROM orders WHERE user_id = users.id) as order_count FROM users" -dialect postgresql
+
+# Multiple scalar subqueries
+./bin/sqlparser -sql "SELECT id, (SELECT AVG(price) FROM products) as avg_price, (SELECT MAX(price) FROM products) as max_price FROM users" -dialect mysql
+```
+
+#### Derived Tables (Subqueries in FROM Clause)
+```bash
+# Simple derived table
+./bin/sqlparser -sql "SELECT * FROM (SELECT id, name FROM users WHERE active = 1) AS active_users WHERE id > 100" -dialect postgresql
+
+# JOIN with derived table
+./bin/sqlparser -sql "SELECT u.name, o.total FROM users u JOIN (SELECT user_id, SUM(amount) as total FROM orders GROUP BY user_id) o ON u.id = o.user_id" -dialect mysql
+
+# Multiple derived tables
+./bin/sqlparser -sql "SELECT * FROM (SELECT id FROM users) u, (SELECT user_id FROM orders) o WHERE u.id = o.user_id" -dialect postgresql
+```
+
+#### Subqueries in INSERT/UPDATE/DELETE
+```bash
+# INSERT with subquery in VALUES
+./bin/sqlparser -sql "INSERT INTO user_stats (user_id, order_count) VALUES (1, (SELECT COUNT(*) FROM orders WHERE user_id = 1))" -dialect mysql
+
+# INSERT ... SELECT
+./bin/sqlparser -sql "INSERT INTO archive SELECT * FROM users WHERE created_at < '2020-01-01'" -dialect postgresql
+
+# UPDATE with subquery in SET
+./bin/sqlparser -sql "UPDATE users SET status = (SELECT status FROM user_preferences WHERE user_id = users.id)" -dialect postgresql
+
+# UPDATE with subquery in WHERE
+./bin/sqlparser -sql "UPDATE users SET active = 0 WHERE id IN (SELECT user_id FROM banned_users)" -dialect mysql
+
+# DELETE with EXISTS
+./bin/sqlparser -sql "DELETE FROM users WHERE EXISTS (SELECT 1 FROM orders WHERE user_id = users.id AND total > 10000)" -dialect postgresql
+```
+
+#### Complex Nested and Correlated Subqueries
+```bash
+# Triple nested subquery
+./bin/sqlparser -sql "SELECT * FROM users WHERE id IN (SELECT user_id FROM orders WHERE product_id IN (SELECT id FROM products WHERE category_id IN (SELECT id FROM categories WHERE name = 'electronics')))" -dialect mysql
+
+# Correlated subquery
+./bin/sqlparser -sql "SELECT * FROM users u WHERE salary > (SELECT AVG(salary) FROM employees e WHERE e.department = u.department)" -dialect postgresql
+
+# Multiple EXISTS clauses
+./bin/sqlparser -sql "SELECT * FROM users WHERE EXISTS (SELECT 1 FROM orders WHERE user_id = users.id) AND EXISTS (SELECT 1 FROM payments WHERE user_id = users.id)" -dialect mysql
 ```
 
 **Example Optimization Output:**
@@ -343,9 +416,11 @@ sql-parser-go/
 ### Core SQL Statements
 - SELECT statements with complex joins
 - WHERE, GROUP BY, HAVING, ORDER BY clauses
-- Subqueries in WHERE and FROM clauses
+- **Full Subquery Support**: WHERE, SELECT, FROM (derived tables), INSERT, UPDATE, DELETE
+- **Subquery Types**: Scalar subqueries, EXISTS, NOT EXISTS, IN, NOT IN, correlated subqueries
+- **Derived Tables**: Subqueries in FROM clause with JOIN support
 - Functions and expressions
-- INSERT, UPDATE, DELETE statements (basic)
+- INSERT, UPDATE, DELETE statements with full DML support
 
 ### Advanced Features ✨
 - **CTEs (Common Table Expressions)**
@@ -374,6 +449,39 @@ sql-parser-go/
   SELECT id FROM prospects
   INTERSECT
   SELECT id FROM active_accounts;
+  ```
+
+- **Comprehensive Subquery Support** ✨
+  ```sql
+  -- Scalar subquery
+  SELECT * FROM users WHERE salary > (SELECT AVG(salary) FROM employees);
+
+  -- EXISTS / NOT EXISTS
+  SELECT * FROM users WHERE EXISTS (SELECT 1 FROM orders WHERE user_id = users.id);
+  DELETE FROM users WHERE NOT EXISTS (SELECT 1 FROM orders WHERE user_id = users.id);
+
+  -- IN / NOT IN with subquery
+  SELECT * FROM users WHERE id IN (SELECT user_id FROM orders WHERE total > 1000);
+
+  -- Derived tables (subqueries in FROM)
+  SELECT * FROM (SELECT id, name FROM users WHERE active = 1) AS active_users;
+
+  -- JOIN with derived table
+  SELECT u.name, o.total
+  FROM users u
+  JOIN (SELECT user_id, SUM(amount) as total FROM orders GROUP BY user_id) o
+  ON u.id = o.user_id;
+
+  -- Nested subqueries
+  SELECT * FROM users
+  WHERE id IN (
+      SELECT user_id FROM orders
+      WHERE product_id IN (SELECT id FROM products WHERE category = 'electronics')
+  );
+
+  -- Correlated subquery
+  SELECT * FROM users u
+  WHERE salary > (SELECT AVG(salary) FROM employees e WHERE e.department = u.department);
   ```
 
 See [examples/queries/](examples/queries/) for more comprehensive examples.
@@ -406,18 +514,29 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [x] Multi-dialect CLI interface with dialect selection
 - [x] **Advanced optimization suggestions** ✅ **COMPLETED!**
 - [x] **Dialect-specific optimization recommendations** ✅ **COMPLETED!**
-- [x] **Subquery parsing and optimization** ✅ **COMPLETED!**
-- [x] **Extended dialect features** ✅ **COMPLETED!**
+- [x] **Comprehensive Subquery Support** ✅ **COMPLETED!**
+  - [x] **Scalar Subqueries** - In WHERE, SELECT, INSERT VALUES, UPDATE SET
+  - [x] **EXISTS / NOT EXISTS** - Full support in all statement types
+  - [x] **IN / NOT IN with Subqueries** - Complete implementation
+  - [x] **Derived Tables** - Subqueries in FROM clause with JOIN support
+  - [x] **Nested & Correlated Subqueries** - Multiple levels of nesting
+- [x] **Extended SQL Features** ✅ **COMPLETED!**
   - [x] **CTEs (WITH clause)** - Simple and multiple CTEs with column lists
   - [x] **Window Functions** - ROW_NUMBER, RANK, PARTITION BY, ORDER BY, frame clauses
   - [x] **Set Operations** - UNION, UNION ALL, INTERSECT, EXCEPT
+  - [x] **CASE Expressions** - Searched and simple CASE statements
+- [x] **DML Statements** ✅ **COMPLETED!**
+  - [x] **INSERT** - VALUES, multiple rows, INSERT...SELECT
+  - [x] **UPDATE** - Multiple columns, WHERE, ORDER BY/LIMIT (MySQL/SQLite)
+  - [x] **DELETE** - WHERE, ORDER BY/LIMIT (MySQL/SQLite)
 - [x] Performance benchmarking
 - [ ] Query execution plan analysis
 - [ ] Real-time log monitoring
 - [ ] Integration with monitoring tools
-- [ ] CASE expressions (partial - needs expression parser refactoring)
 - [ ] Schema-aware parsing and validation
-- [ ] More DDL support (ALTER, CREATE TABLE, etc.)
+- [ ] More DDL support (CREATE TABLE, ALTER, DROP, etc.)
+- [ ] Transaction support (BEGIN, COMMIT, ROLLBACK)
+- [ ] Stored procedure parsing
 
 ## Acknowledgments
 
