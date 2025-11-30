@@ -826,11 +826,11 @@ This project is licensed under the MIT License - see the LICENSE file for detail
   - [x] **ROLLBACK TO SAVEPOINT** - Roll back to specific savepoints
   - [x] **RELEASE SAVEPOINT** - Release savepoints (PostgreSQL/MySQL)
 - [x] Performance benchmarking
-- [ ] Query execution plan analysis
+- [x] Query execution plan analysis
 - [ ] Real-time log monitoring
 - [ ] Integration with monitoring tools
-- [ ] Schema-aware parsing and validation
-- [ ] Stored procedure parsing
+- [x] Schema-aware parsing and validation
+- [x] Stored procedure parsing
 - [ ] Trigger parsing
 - [ ] View definitions (CREATE VIEW)
 
