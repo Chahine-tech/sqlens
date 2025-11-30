@@ -4,14 +4,19 @@ import (
 	"sync"
 )
 
+const (
+	defaultColumnCapacity = 8
+	defaultJoinCapacity   = 4
+)
+
 // Object pools for reducing garbage collection pressure
 var (
 	// Pool for SelectStatement objects
 	selectStatementPool = sync.Pool{
 		New: func() interface{} {
 			return &SelectStatement{
-				Columns: make([]Expression, 0, 8),
-				Joins:   make([]*JoinClause, 0, 4),
+				Columns: make([]Expression, 0, defaultColumnCapacity),
+				Joins:   make([]*JoinClause, 0, defaultJoinCapacity),
 			}
 		},
 	}

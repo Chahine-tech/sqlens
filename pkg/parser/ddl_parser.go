@@ -79,7 +79,7 @@ func (p *Parser) parseCreateTableStatement() (*CreateTableStatement, error) {
 	// Parse table name
 	table, err := p.parseTableReference()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse table name: %v", err)
+		return nil, fmt.Errorf("failed to parse table name: %w", err)
 	}
 	stmt.Table = *table
 
@@ -151,7 +151,7 @@ func (p *Parser) parseColumnDefinition() (*ColumnDefinition, error) {
 		}
 		length, err := strconv.Atoi(p.curToken.Literal)
 		if err != nil {
-			return nil, fmt.Errorf("invalid length: %v", err)
+			return nil, fmt.Errorf("invalid length: %w", err)
 		}
 		col.Length = length
 		p.nextToken()
@@ -164,7 +164,7 @@ func (p *Parser) parseColumnDefinition() (*ColumnDefinition, error) {
 			}
 			scale, err := strconv.Atoi(p.curToken.Literal)
 			if err != nil {
-				return nil, fmt.Errorf("invalid scale: %v", err)
+				return nil, fmt.Errorf("invalid scale: %w", err)
 			}
 			col.Precision = col.Length
 			col.Scale = scale
@@ -213,7 +213,7 @@ func (p *Parser) parseColumnDefinition() (*ColumnDefinition, error) {
 			// Parse default value expression
 			defaultExpr, err := p.parseExpression()
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse DEFAULT value: %v", err)
+				return nil, fmt.Errorf("failed to parse DEFAULT value: %w", err)
 			}
 			col.Default = defaultExpr
 
@@ -496,7 +496,7 @@ func (p *Parser) parseAlterStatement() (*AlterTableStatement, error) {
 	// Parse table name
 	table, err := p.parseTableReference()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse table name: %v", err)
+		return nil, fmt.Errorf("failed to parse table name: %w", err)
 	}
 	stmt.Table = *table
 
@@ -660,7 +660,7 @@ func (p *Parser) parseCreateIndexStatement() (*CreateIndexStatement, error) {
 	// Table name
 	table, err := p.parseTableReference()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse table name: %v", err)
+		return nil, fmt.Errorf("failed to parse table name: %w", err)
 	}
 	stmt.Table = *table
 

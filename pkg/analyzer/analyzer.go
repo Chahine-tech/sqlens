@@ -8,6 +8,14 @@ import (
 	"github.com/Chahine-tech/sql-parser-go/pkg/parser"
 )
 
+const (
+	defaultTableCapacity     = 8
+	defaultColumnCapacity    = 16
+	defaultJoinCapacity      = 4
+	defaultConditionCapacity = 8
+	defaultCacheCapacity     = 64
+)
+
 type Analyzer struct {
 	analysis           QueryAnalysis
 	cache              map[string]QueryAnalysis
@@ -18,24 +26,24 @@ type Analyzer struct {
 func New() *Analyzer {
 	return &Analyzer{
 		analysis: QueryAnalysis{
-			Tables:     make([]TableInfo, 0, 8),
-			Columns:    make([]ColumnInfo, 0, 16),
-			Joins:      make([]JoinInfo, 0, 4),
-			Conditions: make([]ConditionInfo, 0, 8),
+			Tables:     make([]TableInfo, 0, defaultTableCapacity),
+			Columns:    make([]ColumnInfo, 0, defaultColumnCapacity),
+			Joins:      make([]JoinInfo, 0, defaultJoinCapacity),
+			Conditions: make([]ConditionInfo, 0, defaultConditionCapacity),
 		},
-		cache: make(map[string]QueryAnalysis, 64),
+		cache: make(map[string]QueryAnalysis, defaultCacheCapacity),
 	}
 }
 
 func NewWithDialect(d dialect.Dialect) *Analyzer {
 	return &Analyzer{
 		analysis: QueryAnalysis{
-			Tables:     make([]TableInfo, 0, 8),
-			Columns:    make([]ColumnInfo, 0, 16),
-			Joins:      make([]JoinInfo, 0, 4),
-			Conditions: make([]ConditionInfo, 0, 8),
+			Tables:     make([]TableInfo, 0, defaultTableCapacity),
+			Columns:    make([]ColumnInfo, 0, defaultColumnCapacity),
+			Joins:      make([]JoinInfo, 0, defaultJoinCapacity),
+			Conditions: make([]ConditionInfo, 0, defaultConditionCapacity),
 		},
-		cache:              make(map[string]QueryAnalysis, 64),
+		cache:              make(map[string]QueryAnalysis, defaultCacheCapacity),
 		optimizationEngine: NewOptimizationEngine(d),
 	}
 }

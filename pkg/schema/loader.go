@@ -52,7 +52,7 @@ func (sl *SchemaLoader) LoadFromJSON(data []byte) (*Schema, error) {
 	}
 
 	if err := json.Unmarshal(data, &schemaData); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON schema: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON schema: %w", err)
 	}
 
 	schema := NewSchema(schemaData.Name)
@@ -136,7 +136,7 @@ func (sl *SchemaLoader) LoadFromYAML(data []byte) (*Schema, error) {
 	}
 
 	if err := yaml.Unmarshal(data, &schemaData); err != nil {
-		return nil, fmt.Errorf("failed to parse YAML schema: %v", err)
+		return nil, fmt.Errorf("failed to parse YAML schema: %w", err)
 	}
 
 	schema := NewSchema(schemaData.Name)
@@ -194,13 +194,13 @@ func (sl *SchemaLoader) LoadFromYAML(data []byte) (*Schema, error) {
 func (sl *SchemaLoader) LoadFromFile(filename string) (*Schema, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open schema file: %v", err)
+		return nil, fmt.Errorf("failed to open schema file: %w", err)
 	}
 	defer file.Close()
 
 	data, err := io.ReadAll(file)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read schema file: %v", err)
+		return nil, fmt.Errorf("failed to read schema file: %w", err)
 	}
 
 	// Auto-detect format based on file extension

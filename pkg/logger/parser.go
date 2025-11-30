@@ -73,7 +73,7 @@ func (p *SQLServerLogParser) ParseLog(reader io.Reader) ([]LogEntry, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading log file: %v", err)
+		return nil, fmt.Errorf("error reading log file: %w", err)
 	}
 
 	return entries, nil

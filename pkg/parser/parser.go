@@ -12,6 +12,11 @@ import (
 	"github.com/Chahine-tech/sql-parser-go/pkg/lexer"
 )
 
+const (
+	defaultErrorCapacity = 4
+	initialTokenAdvance  = 2 // Advance twice to initialize cur and peek tokens
+)
+
 type Parser struct {
 	l *lexer.Lexer
 
@@ -39,14 +44,16 @@ func NewWithDialect(ctx context.Context, input string, d dialect.Dialect) *Parse
 	l := lexer.NewWithDialect(input, d)
 	p := &Parser{
 		l:              l,
-		errors:         make([]string, 0, 4),
+		errors:         make([]string, 0, defaultErrorCapacity),
 		parseStartTime: time.Now(),
 		ctx:            ctx,
 		dialect:        d,
 	}
 
-	p.nextToken()
-	p.nextToken()
+	// Initialize token buffer (cur and peek)
+	for i := 0; i < initialTokenAdvance; i++ {
+		p.nextToken()
+	}
 
 	return p
 }
@@ -115,6 +122,11 @@ func (p *Parser) GetParseMetrics() map[string]interface{} {
 }
 
 func (p *Parser) ParseStatement() (Statement, error) {
+	// Check if context has been cancelled before starting
+	if err := p.ctx.Err(); err != nil {
+		return nil, fmt.Errorf("parsing cancelled: %w", err)
+	}
+
 	switch p.curToken.Type {
 	case lexer.WITH:
 		return p.parseWithStatement()
@@ -375,7 +387,7 @@ func (p *Parser) parseTableReference() (*TableReference, error) {
 		if p.curTokenIs(lexer.SELECT) {
 			subquery, err := p.parseSelectStatement()
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse derived table subquery: %v", err)
+				return nil, fmt.Errorf("failed to parse derived table subquery: %w", err)
 			}
 
 			if !p.curTokenIs(lexer.RPAREN) {
@@ -441,43 +453,15 @@ func (p *Parser) parseTableReference() (*TableReference, error) {
 func (p *Parser) parseJoinClause() (*JoinClause, error) {
 	joinClause := GetJoinClause()
 
-	if p.curTokenIs(lexer.INNER) {
-		joinClause.JoinType = "INNER"
-		p.nextToken()
-		if !p.curTokenIs(lexer.JOIN) {
-			PutJoinClause(joinClause)
-			return nil, fmt.Errorf("expected JOIN after INNER, got %s", p.curToken.Literal)
-		}
-		p.nextToken()
-	} else if p.curTokenIs(lexer.LEFT) {
-		joinClause.JoinType = "LEFT"
-		p.nextToken()
-		if !p.curTokenIs(lexer.JOIN) {
-			PutJoinClause(joinClause)
-			return nil, fmt.Errorf("expected JOIN after LEFT, got %s", p.curToken.Literal)
-		}
-		p.nextToken()
-	} else if p.curTokenIs(lexer.RIGHT) {
-		joinClause.JoinType = "RIGHT"
-		p.nextToken()
-		if !p.curTokenIs(lexer.JOIN) {
-			PutJoinClause(joinClause)
-			return nil, fmt.Errorf("expected JOIN after RIGHT, got %s", p.curToken.Literal)
-		}
-		p.nextToken()
-	} else if p.curTokenIs(lexer.FULL) {
-		joinClause.JoinType = "FULL"
-		p.nextToken()
-		if !p.curTokenIs(lexer.JOIN) {
-			PutJoinClause(joinClause)
-			return nil, fmt.Errorf("expected JOIN after FULL, got %s", p.curToken.Literal)
-		}
-		p.nextToken()
-	} else if p.curTokenIs(lexer.JOIN) {
-		joinClause.JoinType = "INNER"
-		p.nextToken()
+	// Parse join type (INNER/LEFT/RIGHT/FULL)
+	joinType, err := p.parseJoinType()
+	if err != nil {
+		PutJoinClause(joinClause)
+		return nil, err
 	}
+	joinClause.JoinType = joinType
 
+	// Parse table reference
 	table, err := p.parseTableReference()
 	if err != nil {
 		PutJoinClause(joinClause)
@@ -487,19 +471,48 @@ func (p *Parser) parseJoinClause() (*JoinClause, error) {
 
 	// Parse ON condition
 	if !p.curTokenIs(lexer.ON) {
-		PutJoinClause(joinClause) // Return to pool on error
+		PutJoinClause(joinClause)
 		return nil, fmt.Errorf("expected ON after JOIN table, got %s", p.curToken.Literal)
 	}
 
 	p.nextToken()
 	condition, err := p.parseExpression()
 	if err != nil {
-		PutJoinClause(joinClause) // Return to pool on error
+		PutJoinClause(joinClause)
 		return nil, err
 	}
 	joinClause.Condition = condition
 
 	return joinClause, nil
+}
+
+// parseJoinType parses the join type keyword (INNER/LEFT/RIGHT/FULL JOIN)
+func (p *Parser) parseJoinType() (string, error) {
+	// Map of join type keywords to their string representation
+	joinTypes := map[lexer.TokenType]string{
+		lexer.INNER: "INNER",
+		lexer.LEFT:  "LEFT",
+		lexer.RIGHT: "RIGHT",
+		lexer.FULL:  "FULL",
+	}
+
+	// Check if current token is a join type keyword
+	if joinType, ok := joinTypes[p.curToken.Type]; ok {
+		p.nextToken()
+		if !p.curTokenIs(lexer.JOIN) {
+			return "", fmt.Errorf("expected JOIN after %s, got %s", joinType, p.curToken.Literal)
+		}
+		p.nextToken()
+		return joinType, nil
+	}
+
+	// Default: plain JOIN means INNER JOIN
+	if p.curTokenIs(lexer.JOIN) {
+		p.nextToken()
+		return "INNER", nil
+	}
+
+	return "", fmt.Errorf("expected JOIN keyword, got %s", p.curToken.Literal)
 }
 
 func (p *Parser) parseGroupByClause() ([]Expression, error) {
@@ -695,7 +708,7 @@ func (p *Parser) parseInExpression(left Expression) (Expression, error) {
 		// Parse subquery
 		subquery, err := p.parseSelectStatement()
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse subquery in IN clause: %v", err)
+			return nil, fmt.Errorf("failed to parse subquery in IN clause: %w", err)
 		}
 
 		// Wrap in SubqueryExpression
@@ -888,7 +901,7 @@ func (p *Parser) parseGroupedExpression() (Expression, error) {
 	if p.curTokenIs(lexer.SELECT) {
 		subquery, err := p.parseSelectStatement()
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse subquery: %v", err)
+			return nil, fmt.Errorf("failed to parse subquery: %w", err)
 		}
 
 		if !p.curTokenIs(lexer.RPAREN) {
@@ -930,7 +943,7 @@ func (p *Parser) parseExistsExpression(not bool) (Expression, error) {
 	// Parse the subquery
 	subquery, err := p.parseSelectStatement()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse subquery in EXISTS: %v", err)
+		return nil, fmt.Errorf("failed to parse subquery in EXISTS: %w", err)
 	}
 
 	// Expect closing parenthesis
@@ -974,7 +987,7 @@ func (p *Parser) parseInsertStatement() (*InsertStatement, error) {
 	// Parse table name
 	table, err := p.parseTableReference()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse table name: %v", err)
+		return nil, fmt.Errorf("failed to parse table name: %w", err)
 	}
 	stmt.Table = *table
 
@@ -1020,7 +1033,7 @@ func (p *Parser) parseInsertStatement() (*InsertStatement, error) {
 			for {
 				expr, err := p.parseExpression()
 				if err != nil {
-					return nil, fmt.Errorf("failed to parse value: %v", err)
+					return nil, fmt.Errorf("failed to parse value: %w", err)
 				}
 				row = append(row, expr)
 
@@ -1047,7 +1060,7 @@ func (p *Parser) parseInsertStatement() (*InsertStatement, error) {
 		// INSERT INTO ... SELECT
 		selectStmt, err := p.parseSelectStatement()
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse SELECT in INSERT: %v", err)
+			return nil, fmt.Errorf("failed to parse SELECT in INSERT: %w", err)
 		}
 		stmt.Select = selectStmt
 	} else {
@@ -1068,7 +1081,7 @@ func (p *Parser) parseUpdateStatement() (*UpdateStatement, error) {
 	// Parse table name
 	table, err := p.parseTableReference()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse table name: %v", err)
+		return nil, fmt.Errorf("failed to parse table name: %w", err)
 	}
 	stmt.Table = *table
 
@@ -1098,7 +1111,7 @@ func (p *Parser) parseUpdateStatement() (*UpdateStatement, error) {
 		// Parse value expression
 		value, err := p.parseExpression()
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse value in SET clause: %v", err)
+			return nil, fmt.Errorf("failed to parse value in SET clause: %w", err)
 		}
 		assignment.Value = value
 
@@ -1116,7 +1129,7 @@ func (p *Parser) parseUpdateStatement() (*UpdateStatement, error) {
 		p.nextToken()
 		where, err := p.parseExpression()
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse WHERE clause: %v", err)
+			return nil, fmt.Errorf("failed to parse WHERE clause: %w", err)
 		}
 		stmt.Where = where
 	}
@@ -1125,7 +1138,7 @@ func (p *Parser) parseUpdateStatement() (*UpdateStatement, error) {
 	if p.curTokenIs(lexer.ORDER) {
 		orderBy, err := p.parseOrderByClause()
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse ORDER BY: %v", err)
+			return nil, fmt.Errorf("failed to parse ORDER BY: %w", err)
 		}
 		stmt.OrderBy = orderBy
 	}
@@ -1134,7 +1147,7 @@ func (p *Parser) parseUpdateStatement() (*UpdateStatement, error) {
 	if p.curTokenIs(lexer.LIMIT) {
 		limit, err := p.parseLimitClause()
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse LIMIT: %v", err)
+			return nil, fmt.Errorf("failed to parse LIMIT: %w", err)
 		}
 		stmt.Limit = limit
 	}
@@ -1159,7 +1172,7 @@ func (p *Parser) parseDeleteStatement() (*DeleteStatement, error) {
 	// Parse table name
 	table, err := p.parseTableReference()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse table name: %v", err)
+		return nil, fmt.Errorf("failed to parse table name: %w", err)
 	}
 	stmt.From = *table
 
@@ -1168,7 +1181,7 @@ func (p *Parser) parseDeleteStatement() (*DeleteStatement, error) {
 		p.nextToken()
 		where, err := p.parseExpression()
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse WHERE clause: %v", err)
+			return nil, fmt.Errorf("failed to parse WHERE clause: %w", err)
 		}
 		stmt.Where = where
 	}
@@ -1177,7 +1190,7 @@ func (p *Parser) parseDeleteStatement() (*DeleteStatement, error) {
 	if p.curTokenIs(lexer.ORDER) {
 		orderBy, err := p.parseOrderByClause()
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse ORDER BY: %v", err)
+			return nil, fmt.Errorf("failed to parse ORDER BY: %w", err)
 		}
 		stmt.OrderBy = orderBy
 	}
@@ -1186,7 +1199,7 @@ func (p *Parser) parseDeleteStatement() (*DeleteStatement, error) {
 	if p.curTokenIs(lexer.LIMIT) {
 		limit, err := p.parseLimitClause()
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse LIMIT: %v", err)
+			return nil, fmt.Errorf("failed to parse LIMIT: %w", err)
 		}
 		stmt.Limit = limit
 	}

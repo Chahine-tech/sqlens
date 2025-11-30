@@ -41,7 +41,7 @@ func (p *Parser) parseWithStatement() (*WithStatement, error) {
 	// At this point, curToken should be the start of the main query
 	mainQuery, err := p.ParseStatement()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse main query after WITH clause: %v", err)
+		return nil, fmt.Errorf("failed to parse main query after WITH clause: %w", err)
 	}
 	stmt.Query = mainQuery
 
@@ -106,14 +106,14 @@ func (p *Parser) parseCommonTableExpression() (*CommonTableExpression, error) {
 
 	selectStmt, err := p.parseSelectStatement()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse CTE query: %v", err)
+		return nil, fmt.Errorf("failed to parse CTE query: %w", err)
 	}
 
 	// Check for set operations (UNION, INTERSECT, EXCEPT) in CTE
 	// This is important for recursive CTEs that use UNION ALL
 	query, err := p.parseSetOperation(selectStmt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse set operation in CTE: %v", err)
+		return nil, fmt.Errorf("failed to parse set operation in CTE: %w", err)
 	}
 	cte.Query = query // Can be SelectStatement or SetOperation
 
@@ -163,7 +163,7 @@ func (p *Parser) parseSetOperation(left Statement) (Statement, error) {
 
 	right, err := p.parseSelectStatement()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse right side of %s: %v", setOp.Operator, err)
+		return nil, fmt.Errorf("failed to parse right side of %s: %w", setOp.Operator, err)
 	}
 	setOp.Right = right
 
@@ -214,7 +214,7 @@ func (p *Parser) parseOverClause() (*OverClause, error) {
 		for {
 			expr, err := p.parseExpression()
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse PARTITION BY expression: %v", err)
+				return nil, fmt.Errorf("failed to parse PARTITION BY expression: %w", err)
 			}
 			oc.PartitionBy = append(oc.PartitionBy, expr)
 
@@ -237,7 +237,7 @@ func (p *Parser) parseOverClause() (*OverClause, error) {
 		for {
 			item, err := p.parseOrderByItem()
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse ORDER BY item in window: %v", err)
+				return nil, fmt.Errorf("failed to parse ORDER BY item in window: %w", err)
 			}
 			oc.OrderBy = append(oc.OrderBy, item)
 
@@ -371,7 +371,7 @@ func (p *Parser) parseCaseExpression() (*CaseExpression, error) {
 		// Parse input expression for simple CASE
 		input, err := p.parseExpression()
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse CASE input: %v", err)
+			return nil, fmt.Errorf("failed to parse CASE input: %w", err)
 		}
 		ce.Input = input
 	}
@@ -394,7 +394,7 @@ func (p *Parser) parseCaseExpression() (*CaseExpression, error) {
 		p.nextToken()
 		elseResult, err := p.parseExpression()
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse ELSE result: %v", err)
+			return nil, fmt.Errorf("failed to parse ELSE result: %w", err)
 		}
 		ce.ElseResult = elseResult
 	}
@@ -420,7 +420,7 @@ func (p *Parser) parseWhenClause() (*WhenClause, error) {
 	// Parse condition
 	condition, err := p.parseExpression()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse WHEN condition: %v", err)
+		return nil, fmt.Errorf("failed to parse WHEN condition: %w", err)
 	}
 	wc.Condition = condition
 
@@ -433,7 +433,7 @@ func (p *Parser) parseWhenClause() (*WhenClause, error) {
 	// Parse result
 	result, err := p.parseExpression()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse THEN result: %v", err)
+		return nil, fmt.Errorf("failed to parse THEN result: %w", err)
 	}
 	wc.Result = result
 
