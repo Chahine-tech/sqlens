@@ -15,10 +15,38 @@ func (p *Parser) parseCreateStatement() (Statement, error) {
 	p.nextToken()
 
 	switch p.curToken.Type {
+	case lexer.OR:
+		// CREATE OR REPLACE PROCEDURE/FUNCTION
+		p.nextToken()
+		if !p.curTokenIs(lexer.REPLACE) {
+			return nil, fmt.Errorf("expected REPLACE after OR, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+
+		// Now check what comes after REPLACE
+		if p.curTokenIs(lexer.PROCEDURE) {
+			stmt, err := p.parseCreateProcedureStatement()
+			if err == nil && stmt != nil {
+				stmt.(*CreateProcedureStatement).OrReplace = true
+			}
+			return stmt, err
+		} else if p.curTokenIs(lexer.FUNCTION) {
+			stmt, err := p.parseCreateFunctionStatement()
+			if err == nil && stmt != nil {
+				stmt.(*CreateFunctionStatement).OrReplace = true
+			}
+			return stmt, err
+		}
+		return nil, fmt.Errorf("expected PROCEDURE or FUNCTION after CREATE OR REPLACE, got %s", p.curToken.Literal)
+
 	case lexer.TABLE:
 		return p.parseCreateTableStatement()
 	case lexer.INDEX, lexer.UNIQUE:
 		return p.parseCreateIndexStatement()
+	case lexer.PROCEDURE:
+		return p.parseCreateProcedureStatement()
+	case lexer.FUNCTION:
+		return p.parseCreateFunctionStatement()
 	default:
 		return nil, fmt.Errorf("unsupported CREATE statement: CREATE %s", p.curToken.Literal)
 	}

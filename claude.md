@@ -57,7 +57,7 @@ sql-parser-go/
 ├── cmd/sqlparser/          # CLI entry point (main.go)
 ├── pkg/
 │   ├── lexer/             # SQL tokenization (lexer.go, tokens.go)
-│   ├── parser/            # SQL parsing & AST (parser.go, ast.go, errors.go, pool.go)
+│   ├── parser/            # SQL parsing & AST (parser.go, ast.go, procedure_parser.go, errors.go, pool.go)
 │   ├── analyzer/          # Query analysis (analyzer.go, extractor.go, optimization*.go, concurrent.go)
 │   ├── dialect/           # Dialect support (mysql.go, postgresql.go, sqlserver.go, sqlite.go, oracle.go)
 │   ├── schema/            # Schema definitions and validation (schema.go, loader.go, validator.go, type_checker.go)
@@ -466,11 +466,24 @@ go tool pprof cpu.prof
   - **14+ comprehensive tests** - All passing (81 total tests)
   - **Ultra-fast analysis** - 46ns plan analysis, 117ns bottleneck detection
   - **8 benchmarks** - Sub-microsecond execution plan parsing
+- **Stored Procedures and Functions** ✅ 🆕
+  - **CREATE PROCEDURE** - Full support with parameters (IN/OUT/INOUT)
+  - **CREATE FUNCTION** - With return types and DETERMINISTIC
+  - **OR REPLACE** - PostgreSQL/Oracle style CREATE OR REPLACE
+  - **Parameter Modes** - IN, OUT, INOUT with default values
+  - **Data Types** - VARCHAR(n), DECIMAL(p,s), INT, etc.
+  - **Variable Declarations** - DECLARE variables with types
+  - **Cursor Support** - DECLARE CURSOR FOR SELECT
+  - **Procedural Statements** - RETURN, assignments, cursor operations
+  - **Dialect-Specific Options** - LANGUAGE, DETERMINISTIC, SECURITY DEFINER/INVOKER
+  - **10+ comprehensive tests** - All passing (MySQL, PostgreSQL, SQL Server)
+  - **8 benchmarks** - 10-54μs procedure parsing
+  - **650+ lines** - Complete procedure parser implementation
 
 ### 🚧 In Progress / Planned
 - [ ] Real-time log monitoring
 - [ ] Integration with monitoring tools
-- [ ] Stored procedure parsing
+- [ ] Control flow statements (IF, WHILE, FOR, LOOP)
 - [ ] Materialized views
 - [ ] Triggers
 

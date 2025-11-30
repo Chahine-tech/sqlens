@@ -16,6 +16,8 @@ A powerful multi-dialect SQL query analysis tool written in Go that provides com
   - **CREATE INDEX**: Simple and unique indexes with IF NOT EXISTS
   - **TRANSACTIONS**: BEGIN, START TRANSACTION, COMMIT, ROLLBACK, SAVEPOINT, RELEASE
   - **EXPLAIN**: Full support for EXPLAIN and EXPLAIN ANALYZE with dialect-specific options
+  - **STORED PROCEDURES**: CREATE PROCEDURE with IN/OUT/INOUT parameters, variables, cursors
+  - **FUNCTIONS**: CREATE FUNCTION with return types, DETERMINISTIC, dialect-specific options
 - **Schema-Aware Parsing**: Validate SQL against database schemas
   - **Schema Loading**: Load schemas from JSON, YAML files
   - **Table/Column Validation**: Verify table and column existence

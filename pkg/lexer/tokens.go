@@ -106,6 +106,43 @@ const (
 	PLAN     // PLAN (EXPLAIN QUERY PLAN - SQLite)
 	EXTENDED // EXTENDED (MySQL)
 
+	// Stored Procedures and Functions Keywords
+	PROCEDURE     // CREATE PROCEDURE
+	FUNCTION      // CREATE FUNCTION
+	RETURNS       // RETURNS (function return type)
+	RETURN        // RETURN statement
+	DECLARE       // DECLARE variables/cursors
+	CURSOR        // CURSOR
+	OPEN          // OPEN cursor
+	FETCH         // FETCH cursor
+	CLOSE         // CLOSE cursor
+	INOUT         // INOUT parameter mode
+	OUT           // OUT parameter mode
+	LANGUAGE      // LANGUAGE (PostgreSQL)
+	PLPGSQL       // PL/pgSQL (PostgreSQL)
+	SQL           // SQL language
+	REPLACE       // OR REPLACE
+	SECURITY      // SECURITY DEFINER/INVOKER
+	DEFINER       // DEFINER
+	INVOKER       // INVOKER
+	DETERMINISTIC // DETERMINISTIC function
+	MODIFIES      // MODIFIES SQL DATA
+	READS         // READS SQL DATA
+	CONTAINS      // CONTAINS SQL
+	NO            // NO SQL
+	DATA          // SQL DATA
+	LOOP          // LOOP
+	WHILE         // WHILE loop
+	FOR           // FOR loop
+	REVERSE       // REVERSE (FOR REVERSE)
+	EXIT          // EXIT loop
+	CONTINUE      // CONTINUE loop
+	ITERATE       // ITERATE (MySQL synonym for CONTINUE)
+	LABEL         // Loop label
+	ELSEIF        // ELSEIF (MySQL)
+	ELSIF         // ELSIF (PostgreSQL, Oracle)
+	VARIADIC      // VARIADIC parameters (PostgreSQL)
+
 	// Operators
 	ASSIGN  // =
 	EQ      // ==
@@ -222,6 +259,41 @@ var keywords = map[string]TokenType{
 	"QUERY":          QUERY,
 	"PLAN":           PLAN,
 	"EXTENDED":       EXTENDED,
+	"PROCEDURE":      PROCEDURE,
+	"FUNCTION":       FUNCTION,
+	"RETURNS":        RETURNS,
+	"RETURN":         RETURN,
+	"DECLARE":        DECLARE,
+	"CURSOR":         CURSOR,
+	"OPEN":           OPEN,
+	"FETCH":          FETCH,
+	"CLOSE":          CLOSE,
+	"INOUT":          INOUT,
+	"OUT":            OUT,
+	"LANGUAGE":       LANGUAGE,
+	"PLPGSQL":        PLPGSQL,
+	"SQL":            SQL,
+	"REPLACE":        REPLACE,
+	"SECURITY":       SECURITY,
+	"DEFINER":        DEFINER,
+	"INVOKER":        INVOKER,
+	"DETERMINISTIC":  DETERMINISTIC,
+	"MODIFIES":       MODIFIES,
+	"READS":          READS,
+	"CONTAINS":       CONTAINS,
+	"NO":             NO,
+	"DATA":           DATA,
+	"LOOP":           LOOP,
+	"WHILE":          WHILE,
+	"FOR":            FOR,
+	"REVERSE":        REVERSE,
+	"EXIT":           EXIT,
+	"CONTINUE":       CONTINUE,
+	"ITERATE":        ITERATE,
+	"LABEL":          LABEL,
+	"ELSEIF":         ELSEIF,
+	"ELSIF":          ELSIF,
+	"VARIADIC":       VARIADIC,
 }
 
 type Token struct {
@@ -434,6 +506,76 @@ func (tt TokenType) String() string {
 		return "PLAN"
 	case EXTENDED:
 		return "EXTENDED"
+	case PROCEDURE:
+		return "PROCEDURE"
+	case FUNCTION:
+		return "FUNCTION"
+	case RETURNS:
+		return "RETURNS"
+	case RETURN:
+		return "RETURN"
+	case DECLARE:
+		return "DECLARE"
+	case CURSOR:
+		return "CURSOR"
+	case OPEN:
+		return "OPEN"
+	case FETCH:
+		return "FETCH"
+	case CLOSE:
+		return "CLOSE"
+	case INOUT:
+		return "INOUT"
+	case OUT:
+		return "OUT"
+	case LANGUAGE:
+		return "LANGUAGE"
+	case PLPGSQL:
+		return "PLPGSQL"
+	case SQL:
+		return "SQL"
+	case REPLACE:
+		return "REPLACE"
+	case SECURITY:
+		return "SECURITY"
+	case DEFINER:
+		return "DEFINER"
+	case INVOKER:
+		return "INVOKER"
+	case DETERMINISTIC:
+		return "DETERMINISTIC"
+	case MODIFIES:
+		return "MODIFIES"
+	case READS:
+		return "READS"
+	case CONTAINS:
+		return "CONTAINS"
+	case NO:
+		return "NO"
+	case DATA:
+		return "DATA"
+	case LOOP:
+		return "LOOP"
+	case WHILE:
+		return "WHILE"
+	case FOR:
+		return "FOR"
+	case REVERSE:
+		return "REVERSE"
+	case EXIT:
+		return "EXIT"
+	case CONTINUE:
+		return "CONTINUE"
+	case ITERATE:
+		return "ITERATE"
+	case LABEL:
+		return "LABEL"
+	case ELSEIF:
+		return "ELSEIF"
+	case ELSIF:
+		return "ELSIF"
+	case VARIADIC:
+		return "VARIADIC"
 	default:
 		return "UNKNOWN"
 	}

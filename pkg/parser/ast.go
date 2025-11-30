@@ -640,3 +640,282 @@ func (es *ExplainStatement) String() string {
 	}
 	return fmt.Sprintf("EXPLAIN %s", es.Statement.Type())
 }
+
+// ============================================================================
+// Stored Procedures and Functions
+// ============================================================================
+
+// DataTypeDefinition represents a data type with optional size/precision
+type DataTypeDefinition struct {
+	BaseNode
+	Name      string // VARCHAR, INT, DECIMAL, etc.
+	Length    int    // For VARCHAR(255), CHAR(10), etc.
+	Precision int    // For DECIMAL(10,2), NUMERIC(8,3)
+	Scale     int    // For DECIMAL(10,2), NUMERIC(8,3)
+	IsArray   bool   // For array types (PostgreSQL)
+}
+
+func (dtd *DataTypeDefinition) Type() string { return "DataTypeDefinition" }
+func (dtd *DataTypeDefinition) String() string {
+	if dtd.Length > 0 {
+		return fmt.Sprintf("%s(%d)", dtd.Name, dtd.Length)
+	}
+	if dtd.Precision > 0 {
+		return fmt.Sprintf("%s(%d,%d)", dtd.Name, dtd.Precision, dtd.Scale)
+	}
+	if dtd.IsArray {
+		return fmt.Sprintf("%s[]", dtd.Name)
+	}
+	return dtd.Name
+}
+
+// CreateProcedureStatement represents CREATE PROCEDURE
+type CreateProcedureStatement struct {
+	BaseNode
+	Name            string
+	Parameters      []*ProcedureParameter
+	Body            *ProcedureBody
+	Language        string            // SQL, PLPGSQL, etc.
+	SecurityDefiner bool              // SECURITY DEFINER vs INVOKER
+	Options         map[string]string // Dialect-specific options
+	OrReplace       bool              // CREATE OR REPLACE
+	IfNotExists     bool              // IF NOT EXISTS
+}
+
+func (cps *CreateProcedureStatement) statementNode() {}
+func (cps *CreateProcedureStatement) Type() string   { return "CreateProcedureStatement" }
+func (cps *CreateProcedureStatement) String() string {
+	return fmt.Sprintf("CREATE PROCEDURE %s (%d parameters)", cps.Name, len(cps.Parameters))
+}
+
+// CreateFunctionStatement represents CREATE FUNCTION
+type CreateFunctionStatement struct {
+	BaseNode
+	Name            string
+	Parameters      []*ProcedureParameter
+	ReturnType      *DataTypeDefinition
+	Body            *ProcedureBody
+	Language        string            // SQL, PLPGSQL, etc.
+	Deterministic   bool              // DETERMINISTIC
+	SecurityDefiner bool              // SECURITY DEFINER vs INVOKER
+	Options         map[string]string // Dialect-specific options
+	OrReplace       bool              // CREATE OR REPLACE
+	IfNotExists     bool              // IF NOT EXISTS
+}
+
+func (cfs *CreateFunctionStatement) statementNode() {}
+func (cfs *CreateFunctionStatement) Type() string   { return "CreateFunctionStatement" }
+func (cfs *CreateFunctionStatement) String() string {
+	return fmt.Sprintf("CREATE FUNCTION %s (%d parameters) RETURNS %s", cfs.Name, len(cfs.Parameters), cfs.ReturnType.Name)
+}
+
+// ProcedureParameter represents a parameter in a procedure/function
+type ProcedureParameter struct {
+	BaseNode
+	Name       string
+	Mode       string              // IN, OUT, INOUT
+	DataType   *DataTypeDefinition // Parameter type
+	Default    Expression          // Default value
+	IsVariadic bool                // VARIADIC (PostgreSQL)
+}
+
+func (pp *ProcedureParameter) Type() string { return "ProcedureParameter" }
+func (pp *ProcedureParameter) String() string {
+	return fmt.Sprintf("%s %s %s", pp.Mode, pp.Name, pp.DataType.Name)
+}
+
+// ProcedureBody represents the body of a procedure/function
+type ProcedureBody struct {
+	BaseNode
+	Statements []Statement     // List of statements in the body
+	Variables  []*VariableDecl // DECLARE variables
+	Cursors    []*CursorDecl   // DECLARE cursors
+}
+
+func (pb *ProcedureBody) Type() string { return "ProcedureBody" }
+func (pb *ProcedureBody) String() string {
+	return fmt.Sprintf("Procedure Body (%d statements)", len(pb.Statements))
+}
+
+// VariableDecl represents a variable declaration (DECLARE)
+type VariableDecl struct {
+	BaseNode
+	Name     string
+	DataType *DataTypeDefinition
+	Default  Expression
+}
+
+func (vd *VariableDecl) statementNode() {}
+func (vd *VariableDecl) Type() string   { return "VariableDecl" }
+func (vd *VariableDecl) String() string {
+	return fmt.Sprintf("DECLARE %s %s", vd.Name, vd.DataType.Name)
+}
+
+// CursorDecl represents a cursor declaration
+type CursorDecl struct {
+	BaseNode
+	Name  string
+	Query *SelectStatement
+}
+
+func (cd *CursorDecl) statementNode() {}
+func (cd *CursorDecl) Type() string   { return "CursorDecl" }
+func (cd *CursorDecl) String() string { return fmt.Sprintf("DECLARE CURSOR %s", cd.Name) }
+
+// IfStatement represents IF...THEN...ELSE
+type IfStatement struct {
+	BaseNode
+	Condition  Expression
+	ThenBlock  []Statement
+	ElseIfList []*ElseIfBlock
+	ElseBlock  []Statement
+}
+
+func (is *IfStatement) statementNode() {}
+func (is *IfStatement) Type() string   { return "IfStatement" }
+func (is *IfStatement) String() string { return "IF Statement" }
+
+// ElseIfBlock represents ELSEIF/ELSIF block
+type ElseIfBlock struct {
+	BaseNode
+	Condition Expression
+	Block     []Statement
+}
+
+func (eib *ElseIfBlock) Type() string   { return "ElseIfBlock" }
+func (eib *ElseIfBlock) String() string { return "ELSEIF Block" }
+
+// WhileStatement represents WHILE loop
+type WhileStatement struct {
+	BaseNode
+	Condition Expression
+	Block     []Statement
+	Label     string // Loop label
+}
+
+func (ws *WhileStatement) statementNode() {}
+func (ws *WhileStatement) Type() string   { return "WhileStatement" }
+func (ws *WhileStatement) String() string { return "WHILE Loop" }
+
+// LoopStatement represents LOOP...END LOOP
+type LoopStatement struct {
+	BaseNode
+	Block []Statement
+	Label string // Loop label
+}
+
+func (ls *LoopStatement) statementNode() {}
+func (ls *LoopStatement) Type() string   { return "LoopStatement" }
+func (ls *LoopStatement) String() string { return "LOOP" }
+
+// ForStatement represents FOR loop
+type ForStatement struct {
+	BaseNode
+	Variable  string
+	Start     Expression
+	End       Expression
+	Step      Expression // Optional
+	Block     []Statement
+	Label     string // Loop label
+	IsReverse bool   // FOR ... IN REVERSE (PostgreSQL)
+}
+
+func (fs *ForStatement) statementNode() {}
+func (fs *ForStatement) Type() string   { return "ForStatement" }
+func (fs *ForStatement) String() string { return "FOR Loop" }
+
+// CaseStatement represents CASE statement (procedural, not expression)
+type CaseStatement struct {
+	BaseNode
+	Expression Expression   // Optional: CASE expr WHEN...
+	WhenList   []*WhenBlock // WHEN conditions
+	ElseBlock  []Statement  // ELSE block
+}
+
+func (cs *CaseStatement) statementNode() {}
+func (cs *CaseStatement) Type() string   { return "CaseStatement" }
+func (cs *CaseStatement) String() string { return "CASE Statement" }
+
+// WhenBlock represents a WHEN block in CASE
+type WhenBlock struct {
+	BaseNode
+	Condition Expression
+	Block     []Statement
+}
+
+func (wb *WhenBlock) Type() string   { return "WhenBlock" }
+func (wb *WhenBlock) String() string { return "WHEN Block" }
+
+// ReturnStatement represents RETURN
+type ReturnStatement struct {
+	BaseNode
+	Value Expression
+}
+
+func (rs *ReturnStatement) statementNode() {}
+func (rs *ReturnStatement) Type() string   { return "ReturnStatement" }
+func (rs *ReturnStatement) String() string { return "RETURN" }
+
+// AssignmentStatement represents variable assignment (SET or :=)
+type AssignmentStatement struct {
+	BaseNode
+	Variable string
+	Value    Expression
+}
+
+func (as *AssignmentStatement) statementNode() {}
+func (as *AssignmentStatement) Type() string   { return "AssignmentStatement" }
+func (as *AssignmentStatement) String() string { return fmt.Sprintf("SET %s = ...", as.Variable) }
+
+// OpenCursorStatement represents OPEN cursor
+type OpenCursorStatement struct {
+	BaseNode
+	CursorName string
+}
+
+func (ocs *OpenCursorStatement) statementNode() {}
+func (ocs *OpenCursorStatement) Type() string   { return "OpenCursorStatement" }
+func (ocs *OpenCursorStatement) String() string { return fmt.Sprintf("OPEN %s", ocs.CursorName) }
+
+// FetchStatement represents FETCH cursor
+type FetchStatement struct {
+	BaseNode
+	CursorName string
+	Variables  []string // INTO variables
+}
+
+func (fs *FetchStatement) statementNode() {}
+func (fs *FetchStatement) Type() string   { return "FetchStatement" }
+func (fs *FetchStatement) String() string { return fmt.Sprintf("FETCH %s", fs.CursorName) }
+
+// CloseStatement represents CLOSE cursor
+type CloseStatement struct {
+	BaseNode
+	CursorName string
+}
+
+func (cs *CloseStatement) statementNode() {}
+func (cs *CloseStatement) Type() string   { return "CloseStatement" }
+func (cs *CloseStatement) String() string { return fmt.Sprintf("CLOSE %s", cs.CursorName) }
+
+// ExitStatement represents EXIT/BREAK (loop control)
+type ExitStatement struct {
+	BaseNode
+	Label     string     // Loop label to exit
+	Condition Expression // WHEN condition (PostgreSQL)
+}
+
+func (es *ExitStatement) statementNode() {}
+func (es *ExitStatement) Type() string   { return "ExitStatement" }
+func (es *ExitStatement) String() string { return "EXIT" }
+
+// ContinueStatement represents CONTINUE/ITERATE (loop control)
+type ContinueStatement struct {
+	BaseNode
+	Label     string     // Loop label
+	Condition Expression // WHEN condition (PostgreSQL)
+}
+
+func (cs *ContinueStatement) statementNode() {}
+func (cs *ContinueStatement) Type() string   { return "ContinueStatement" }
+func (cs *ContinueStatement) String() string { return "CONTINUE" }
