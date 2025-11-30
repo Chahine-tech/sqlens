@@ -130,7 +130,6 @@ const (
 	READS         // READS SQL DATA
 	CONTAINS      // CONTAINS SQL
 	NO            // NO SQL
-	DATA          // SQL DATA
 	LOOP          // LOOP
 	WHILE         // WHILE loop
 	FOR           // FOR loop
@@ -282,7 +281,6 @@ var keywords = map[string]TokenType{
 	"READS":          READS,
 	"CONTAINS":       CONTAINS,
 	"NO":             NO,
-	"DATA":           DATA,
 	"LOOP":           LOOP,
 	"WHILE":          WHILE,
 	"FOR":            FOR,
@@ -552,8 +550,6 @@ func (tt TokenType) String() string {
 		return "CONTAINS"
 	case NO:
 		return "NO"
-	case DATA:
-		return "DATA"
 	case LOOP:
 		return "LOOP"
 	case WHILE:

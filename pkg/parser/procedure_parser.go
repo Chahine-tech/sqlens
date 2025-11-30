@@ -304,7 +304,8 @@ func (p *Parser) parseFunctionOptions(stmt *CreateFunctionStatement) error {
 		if p.curTokenIs(lexer.SQL) {
 			access += " SQL"
 			p.nextToken()
-			if p.curTokenIs(lexer.DATA) {
+			// DATA is not a reserved keyword, so check if it's an IDENT with literal "DATA"
+			if p.curTokenIs(lexer.IDENT) && p.curToken.Literal == "DATA" {
 				access += " DATA"
 				p.nextToken()
 			}
