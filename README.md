@@ -15,11 +15,17 @@ A powerful multi-dialect SQL query analysis tool written in Go that provides com
   - **ALTER TABLE**: ADD/DROP/MODIFY/CHANGE columns and constraints
   - **CREATE INDEX**: Simple and unique indexes with IF NOT EXISTS
   - **TRANSACTIONS**: BEGIN, START TRANSACTION, COMMIT, ROLLBACK, SAVEPOINT, RELEASE
+  - **EXPLAIN**: Full support for EXPLAIN and EXPLAIN ANALYZE with dialect-specific options
 - **Schema-Aware Parsing**: Validate SQL against database schemas
   - **Schema Loading**: Load schemas from JSON, YAML files
   - **Table/Column Validation**: Verify table and column existence
   - **Type Checking**: Validate data type compatibility
   - **Foreign Key Validation**: Check foreign key references
+- **Execution Plan Analysis**: Analyze query performance and detect bottlenecks
+  - **EXPLAIN Parsing**: Parse EXPLAIN statements across all dialects
+  - **Plan Analysis**: Automatic detection of performance issues
+  - **Optimization Suggestions**: Get actionable recommendations for query improvements
+  - **Performance Scoring**: 0-100 score based on plan quality
 - **SQL Query Parsing**: Parse and analyze complex SQL queries with dialect-specific syntax
 - **Abstract Syntax Tree (AST)**: Generate detailed AST representations
 - **Query Analysis**: Extract tables, columns, joins, and conditions
@@ -397,6 +403,61 @@ func main() {
   ]
 }
 ```
+
+#### Execution Plan Analysis
+
+Analyze query execution plans to identify performance bottlenecks:
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"github.com/Chahine-tech/sql-parser-go/pkg/dialect"
+	"github.com/Chahine-tech/sql-parser-go/pkg/parser"
+	"github.com/Chahine-tech/sql-parser-go/pkg/plan"
+)
+
+func main() {
+	// Parse EXPLAIN statement
+	sql := "EXPLAIN ANALYZE SELECT u.name, COUNT(o.id) FROM users u JOIN orders o ON u.id = o.user_id GROUP BY u.name"
+	p := parser.NewWithDialect(context.Background(), sql, dialect.GetDialect("postgresql"))
+	stmt, _ := p.ParseStatement()
+
+	explainStmt := stmt.(*parser.ExplainStatement)
+	fmt.Printf("Analyzing: %s\n", explainStmt.Statement.Type())
+	fmt.Printf("With ANALYZE: %v\n", explainStmt.Analyze)
+
+	// Analyze execution plan (from database output)
+	jsonPlan := []byte(`{"Plan": {...}}`) // From EXPLAIN FORMAT=JSON
+	executionPlan, _ := plan.ParseJSONPlan(jsonPlan, "postgresql")
+
+	// Get performance analysis
+	analyzer := plan.NewPlanAnalyzer("postgresql")
+	analysis := analyzer.AnalyzePlan(executionPlan)
+
+	fmt.Printf("Performance Score: %.2f/100\n", analysis.PerformanceScore)
+
+	// Review issues
+	for _, issue := range analysis.Issues {
+		fmt.Printf("[%s] %s: %s\n", issue.Severity, issue.Type, issue.Description)
+	}
+
+	// Get recommendations
+	for _, rec := range analysis.Recommendations {
+		fmt.Printf("[%s] %s\n", rec.Priority, rec.Description)
+	}
+}
+```
+
+**Execution Plan Features:**
+- **EXPLAIN parsing** - Full support for EXPLAIN and EXPLAIN ANALYZE
+- **Multi-dialect** - MySQL, PostgreSQL, SQL Server, SQLite
+- **Bottleneck detection** - Automatic identification of performance issues
+- **Optimization suggestions** - Actionable recommendations with priority levels
+- **Performance scoring** - 0-100 score based on plan quality
+- **Cost analysis** - Startup and total cost estimation
 
 ### Parse SQL Server Logs
 

@@ -147,6 +147,8 @@ func (p *Parser) ParseStatement() (Statement, error) {
 		return p.parseSavepoint()
 	case lexer.RELEASE:
 		return p.parseReleaseSavepoint()
+	case lexer.EXPLAIN:
+		return p.parseExplainStatement()
 	default:
 		return nil, fmt.Errorf("unsupported statement type: %s", p.curToken.Literal)
 	}

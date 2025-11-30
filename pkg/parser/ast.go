@@ -622,3 +622,21 @@ func (rss *ReleaseSavepointStatement) Type() string   { return "ReleaseSavepoint
 func (rss *ReleaseSavepointStatement) String() string {
 	return fmt.Sprintf("RELEASE SAVEPOINT %s", rss.Name)
 }
+
+// EXPLAIN Statement
+type ExplainStatement struct {
+	BaseNode
+	Statement Statement         // The statement to explain
+	Analyze   bool              // EXPLAIN ANALYZE
+	Format    string            // FORMAT (JSON, XML, TEXT, etc.)
+	Options   map[string]string // Dialect-specific options
+}
+
+func (es *ExplainStatement) statementNode() {}
+func (es *ExplainStatement) Type() string   { return "ExplainStatement" }
+func (es *ExplainStatement) String() string {
+	if es.Analyze {
+		return fmt.Sprintf("EXPLAIN ANALYZE %s", es.Statement.Type())
+	}
+	return fmt.Sprintf("EXPLAIN %s", es.Statement.Type())
+}

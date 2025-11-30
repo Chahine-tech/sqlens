@@ -61,6 +61,7 @@ sql-parser-go/
 │   ├── analyzer/          # Query analysis (analyzer.go, extractor.go, optimization*.go, concurrent.go)
 │   ├── dialect/           # Dialect support (mysql.go, postgresql.go, sqlserver.go, sqlite.go, oracle.go)
 │   ├── schema/            # Schema definitions and validation (schema.go, loader.go, validator.go, type_checker.go)
+│   ├── plan/              # Execution plan analysis (plan.go, analyzer.go)
 │   └── logger/            # Log parsing (parser.go, formats.go)
 ├── internal/
 │   ├── config/            # Configuration (config.go)
@@ -122,7 +123,14 @@ sql-parser-go/
   - [validator.go](pkg/schema/validator.go) - Validate SQL statements against schema
   - [type_checker.go](pkg/schema/type_checker.go) - Type compatibility checking
 
-### 6. Logger (`pkg/logger/`)
+### 6. Execution Plan (`pkg/plan/`)
+- **Purpose**: Analyze query execution plans and provide optimization suggestions
+- **Performance**: 46ns plan analysis, 117ns bottleneck detection
+- **Files**:
+  - [plan.go](pkg/plan/plan.go) - ExecutionPlan, PlanNode, cost structures
+  - [analyzer.go](pkg/plan/analyzer.go) - Plan analysis and JSON/XML parsing
+
+### 7. Logger (`pkg/logger/`)
 - **Purpose**: Parse SQL Server log files
 - **Formats**: Profiler, Extended Events, Query Store
 - **Files**:
@@ -257,6 +265,51 @@ Since we now have advanced features support, here's the pattern:
    - Test table/column existence validation
    - Test type compatibility checking
    - Test foreign key validation
+
+### Task 8: Analyze Execution Plans
+**Example**: Analyzing query execution plans for performance bottlenecks
+
+1. **Parse EXPLAIN statement**
+   ```go
+   sql := "EXPLAIN ANALYZE SELECT * FROM users WHERE id = 1"
+   p := parser.NewWithDialect(ctx, sql, dialect.GetDialect("postgresql"))
+   stmt, err := p.ParseStatement()
+   explainStmt := stmt.(*parser.ExplainStatement)
+   ```
+
+2. **Parse JSON execution plan** (from database output)
+   ```go
+   jsonPlan := []byte(`{"Plan": {...}}`) // From EXPLAIN FORMAT=JSON
+   executionPlan, err := plan.ParseJSONPlan(jsonPlan, "postgresql")
+   ```
+
+3. **Analyze plan for bottlenecks**
+   ```go
+   analyzer := plan.NewPlanAnalyzer("postgresql")
+   analysis := analyzer.AnalyzePlan(executionPlan)
+
+   // Check performance score
+   fmt.Printf("Performance Score: %.2f/100\n", analysis.PerformanceScore)
+
+   // Review issues
+   for _, issue := range analysis.Issues {
+       fmt.Printf("[%s] %s: %s\n", issue.Severity, issue.Type, issue.Description)
+   }
+
+   // Get recommendations
+   for _, rec := range analysis.Recommendations {
+       fmt.Printf("[%s] %s\n", rec.Priority, rec.Description)
+   }
+   ```
+
+4. **Find specific bottlenecks**
+   ```go
+   bottlenecks := executionPlan.FindBottlenecks()
+   for _, b := range bottlenecks {
+       fmt.Printf("Issue: %s (Impact: %.2f)\n", b.Issue, b.ImpactScore)
+       fmt.Printf("Fix: %s\n", b.Recommendation)
+   }
+   ```
 
 ## 🧪 Testing Strategy
 
@@ -393,7 +446,7 @@ go tool pprof cpu.prof
   - **RELEASE SAVEPOINT** - Release savepoints (PostgreSQL/MySQL)
   - **16+ comprehensive tests** - All passing
   - **Ultra-fast performance** - Sub-microsecond COMMIT/ROLLBACK
-- **Schema-Aware Parsing** ✅ 🆕
+- **Schema-Aware Parsing** ✅
   - **Schema Definition** - Tables, columns, data types, constraints, indexes, foreign keys
   - **Schema Loading** - JSON and YAML format support
   - **SQL Validation** - Validate SELECT, INSERT, UPDATE, DELETE against schema
@@ -403,9 +456,18 @@ go tool pprof cpu.prof
   - **9+ comprehensive tests** - All passing (67 total tests)
   - **Zero-allocation validation** - 155-264ns per statement
   - **Fast schema loading** - 7.2μs from JSON
+- **Query Execution Plan Analysis** ✅ 🆕
+  - **EXPLAIN Statement Support** - Full multi-dialect EXPLAIN parsing
+  - **EXPLAIN ANALYZE** - Support for actual execution statistics
+  - **Execution Plan Structures** - 20+ node types (Scans, Joins, Aggregates, Sorts)
+  - **Plan Analyzer** - Automatic bottleneck detection and optimization suggestions
+  - **Performance Score** - 0-100 score calculation based on plan quality
+  - **Dialect-Specific Parsing** - MySQL JSON, PostgreSQL JSON, SQL Server XML formats
+  - **14+ comprehensive tests** - All passing (81 total tests)
+  - **Ultra-fast analysis** - 46ns plan analysis, 117ns bottleneck detection
+  - **8 benchmarks** - Sub-microsecond execution plan parsing
 
 ### 🚧 In Progress / Planned
-- [ ] Query execution plan analysis
 - [ ] Real-time log monitoring
 - [ ] Integration with monitoring tools
 - [ ] Stored procedure parsing

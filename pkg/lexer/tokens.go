@@ -98,6 +98,14 @@ const (
 	WORK        // WORK (optional in COMMIT/ROLLBACK)
 	TRANSACTION // TRANSACTION
 
+	// Execution Plan Keywords
+	EXPLAIN  // EXPLAIN
+	ANALYZE  // ANALYZE (EXPLAIN ANALYZE)
+	FORMAT   // FORMAT (EXPLAIN FORMAT=JSON)
+	QUERY    // QUERY (EXPLAIN QUERY PLAN - SQLite)
+	PLAN     // PLAN (EXPLAIN QUERY PLAN - SQLite)
+	EXTENDED // EXTENDED (MySQL)
+
 	// Operators
 	ASSIGN  // =
 	EQ      // ==
@@ -208,6 +216,12 @@ var keywords = map[string]TokenType{
 	"RELEASE":        RELEASE,
 	"WORK":           WORK,
 	"TRANSACTION":    TRANSACTION,
+	"EXPLAIN":        EXPLAIN,
+	"ANALYZE":        ANALYZE,
+	"FORMAT":         FORMAT,
+	"QUERY":          QUERY,
+	"PLAN":           PLAN,
+	"EXTENDED":       EXTENDED,
 }
 
 type Token struct {
@@ -408,6 +422,18 @@ func (tt TokenType) String() string {
 		return "WORK"
 	case TRANSACTION:
 		return "TRANSACTION"
+	case EXPLAIN:
+		return "EXPLAIN"
+	case ANALYZE:
+		return "ANALYZE"
+	case FORMAT:
+		return "FORMAT"
+	case QUERY:
+		return "QUERY"
+	case PLAN:
+		return "PLAN"
+	case EXTENDED:
+		return "EXTENDED"
 	default:
 		return "UNKNOWN"
 	}
