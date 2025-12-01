@@ -982,16 +982,16 @@ func (cs *ContinueStatement) String() string { return "CONTINUE" }
 // CreateTriggerStatement represents CREATE TRIGGER
 type CreateTriggerStatement struct {
 	BaseNode
-	TriggerName  string            // Trigger name
-	Timing       string            // BEFORE, AFTER, INSTEAD OF
-	Events       []string          // INSERT, UPDATE, DELETE
-	TableName    TableReference    // Table the trigger is on
-	ForEachRow   bool              // FOR EACH ROW (vs FOR EACH STATEMENT)
-	WhenCondition Expression       // Optional WHEN condition
-	Body         *ProcedureBody    // Trigger body (BEGIN...END or single statement)
-	OrReplace    bool              // OR REPLACE (PostgreSQL)
-	IfNotExists  bool              // IF NOT EXISTS (MySQL)
-	Options      map[string]string // Dialect-specific options
+	TriggerName   string            // Trigger name
+	Timing        string            // BEFORE, AFTER, INSTEAD OF
+	Events        []string          // INSERT, UPDATE, DELETE
+	TableName     TableReference    // Table the trigger is on
+	ForEachRow    bool              // FOR EACH ROW (vs FOR EACH STATEMENT)
+	WhenCondition Expression        // Optional WHEN condition
+	Body          *ProcedureBody    // Trigger body (BEGIN...END or single statement)
+	OrReplace     bool              // OR REPLACE (PostgreSQL)
+	IfNotExists   bool              // IF NOT EXISTS (MySQL)
+	Options       map[string]string // Dialect-specific options
 }
 
 func (cts *CreateTriggerStatement) statementNode() {}
