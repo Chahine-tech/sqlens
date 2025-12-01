@@ -491,12 +491,25 @@ go tool pprof cpu.prof
   - **Schema-qualified views** - Support for schema.view_name syntax
   - **27 comprehensive tests** - All passing across all dialects
   - **231 lines of examples** - Complete examples in view_examples.sql
+- **Trigger Support** ✅ 🆕
+  - **CREATE TRIGGER** - Full trigger creation with timing, events, and body
+  - **BEFORE/AFTER/INSTEAD OF** - All trigger timings supported
+  - **Multiple events** - INSERT, UPDATE, DELETE with OR combinations
+  - **FOR EACH ROW/STATEMENT** - Row-level and statement-level triggers
+  - **WHEN conditions** - Optional trigger conditions (PostgreSQL)
+  - **IF NOT EXISTS** - Safe trigger creation (MySQL)
+  - **OR REPLACE** - Idempotent trigger definitions (PostgreSQL)
+  - **DROP TRIGGER** - Simple and conditional (IF EXISTS) trigger dropping
+  - **BEGIN...END blocks** - Trigger body parsing
+  - **Multi-dialect support** - MySQL, PostgreSQL, SQL Server, SQLite, Oracle
+  - **Schema-qualified tables** - Support for triggers on schema.table
+  - **23 comprehensive tests** - All passing across all dialects
+  - **450 lines of examples** - Complete real-world examples in trigger_examples.sql
 
 ### 🚧 In Progress / Planned
 - [ ] Real-time log monitoring
 - [ ] Integration with monitoring tools
 - [ ] Control flow statements (IF, WHILE, FOR, LOOP)
-- [ ] Triggers
 
 ### ❌ Not Planned
 - Web interface (project stays CLI-focused)

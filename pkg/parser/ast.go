@@ -974,3 +974,47 @@ type ContinueStatement struct {
 func (cs *ContinueStatement) statementNode() {}
 func (cs *ContinueStatement) Type() string   { return "ContinueStatement" }
 func (cs *ContinueStatement) String() string { return "CONTINUE" }
+
+// ============================================================================
+// Triggers
+// ============================================================================
+
+// CreateTriggerStatement represents CREATE TRIGGER
+type CreateTriggerStatement struct {
+	BaseNode
+	TriggerName  string            // Trigger name
+	Timing       string            // BEFORE, AFTER, INSTEAD OF
+	Events       []string          // INSERT, UPDATE, DELETE
+	TableName    TableReference    // Table the trigger is on
+	ForEachRow   bool              // FOR EACH ROW (vs FOR EACH STATEMENT)
+	WhenCondition Expression       // Optional WHEN condition
+	Body         *ProcedureBody    // Trigger body (BEGIN...END or single statement)
+	OrReplace    bool              // OR REPLACE (PostgreSQL)
+	IfNotExists  bool              // IF NOT EXISTS (MySQL)
+	Options      map[string]string // Dialect-specific options
+}
+
+func (cts *CreateTriggerStatement) statementNode() {}
+func (cts *CreateTriggerStatement) Type() string   { return "CreateTriggerStatement" }
+func (cts *CreateTriggerStatement) String() string {
+	var result string
+	if cts.OrReplace {
+		result = "CREATE OR REPLACE TRIGGER "
+	} else {
+		result = "CREATE TRIGGER "
+	}
+	if cts.IfNotExists {
+		result = "CREATE TRIGGER IF NOT EXISTS "
+	}
+	result += cts.TriggerName + " "
+	result += cts.Timing + " "
+	result += strings.Join(cts.Events, " OR ") + " "
+	result += "ON " + cts.TableName.String()
+	if cts.ForEachRow {
+		result += " FOR EACH ROW"
+	}
+	if cts.WhenCondition != nil {
+		result += " WHEN (" + cts.WhenCondition.String() + ")"
+	}
+	return result
+}

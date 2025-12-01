@@ -45,8 +45,17 @@ func (p *Parser) parseCreateStatement() (Statement, error) {
 				stmt.OrReplace = true
 			}
 			return stmt, nil
+		} else if p.curTokenIs(lexer.TRIGGER) {
+			stmt, err := p.parseCreateTriggerStatement()
+			if err != nil {
+				return nil, err
+			}
+			if stmt != nil {
+				stmt.OrReplace = true
+			}
+			return stmt, nil
 		}
-		return nil, fmt.Errorf("expected PROCEDURE, FUNCTION, or VIEW after CREATE OR REPLACE, got %s", p.curToken.Literal)
+		return nil, fmt.Errorf("expected PROCEDURE, FUNCTION, VIEW, or TRIGGER after CREATE OR REPLACE, got %s", p.curToken.Literal)
 
 	case lexer.TABLE:
 		return p.parseCreateTableStatement()
@@ -58,6 +67,8 @@ func (p *Parser) parseCreateStatement() (Statement, error) {
 		return p.parseCreateProcedureStatement()
 	case lexer.FUNCTION:
 		return p.parseCreateFunctionStatement()
+	case lexer.TRIGGER:
+		return p.parseCreateTriggerStatement()
 	default:
 		return nil, fmt.Errorf("unsupported CREATE statement: CREATE %s", p.curToken.Literal)
 	}
@@ -458,8 +469,10 @@ func (p *Parser) parseDropStatement() (*DropStatement, error) {
 		if !p.curTokenIs(lexer.VIEW) {
 			return nil, fmt.Errorf("expected VIEW after MATERIALIZED, got %s", p.curToken.Literal)
 		}
+	case lexer.TRIGGER:
+		stmt.ObjectType = "TRIGGER"
 	default:
-		return nil, fmt.Errorf("expected TABLE, DATABASE, INDEX, or VIEW, got %s", p.curToken.Literal)
+		return nil, fmt.Errorf("expected TABLE, DATABASE, INDEX, VIEW, or TRIGGER, got %s", p.curToken.Literal)
 	}
 	p.nextToken()
 
@@ -816,6 +829,185 @@ func (p *Parser) parseCreateViewStatement() (*CreateViewStatement, error) {
 			// If it's not CHECK, move back - might be end of statement
 			// For now, we'll just ignore unknown WITH clauses
 		}
+	}
+
+	return stmt, nil
+}
+
+// parseCreateTriggerStatement parses CREATE TRIGGER statements
+func (p *Parser) parseCreateTriggerStatement() (*CreateTriggerStatement, error) {
+	stmt := &CreateTriggerStatement{
+		Options: make(map[string]string),
+	}
+
+	// Expect TRIGGER
+	if !p.curTokenIs(lexer.TRIGGER) {
+		return nil, fmt.Errorf("expected TRIGGER, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Check for IF NOT EXISTS (MySQL)
+	if p.curTokenIs(lexer.IF) {
+		p.nextToken()
+		if !p.curTokenIs(lexer.NOT) {
+			return nil, fmt.Errorf("expected NOT after IF, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+		if !p.curTokenIs(lexer.EXISTS) {
+			return nil, fmt.Errorf("expected EXISTS after NOT, got %s", p.curToken.Literal)
+		}
+		stmt.IfNotExists = true
+		p.nextToken()
+	}
+
+	// Parse trigger name
+	if !p.curTokenIs(lexer.IDENT) {
+		return nil, fmt.Errorf("expected trigger name, got %s", p.curToken.Literal)
+	}
+	stmt.TriggerName = p.curToken.Literal
+	p.nextToken()
+
+	// Parse timing: BEFORE, AFTER, or INSTEAD OF
+	if p.curTokenIs(lexer.BEFORE) {
+		stmt.Timing = "BEFORE"
+		p.nextToken()
+	} else if p.curTokenIs(lexer.AFTER) {
+		stmt.Timing = "AFTER"
+		p.nextToken()
+	} else if p.curTokenIs(lexer.INSTEAD) {
+		// INSTEAD OF (SQL Server, Oracle)
+		stmt.Timing = "INSTEAD OF"
+		p.nextToken()
+		if !p.curTokenIs(lexer.OF) {
+			return nil, fmt.Errorf("expected OF after INSTEAD, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+	} else {
+		return nil, fmt.Errorf("expected BEFORE, AFTER, or INSTEAD, got %s", p.curToken.Literal)
+	}
+
+	// Parse events: INSERT, UPDATE, DELETE (can be multiple with OR)
+	for {
+		if p.curTokenIs(lexer.INSERT) {
+			stmt.Events = append(stmt.Events, "INSERT")
+			p.nextToken()
+		} else if p.curTokenIs(lexer.UPDATE) {
+			stmt.Events = append(stmt.Events, "UPDATE")
+			p.nextToken()
+		} else if p.curTokenIs(lexer.DELETE) {
+			stmt.Events = append(stmt.Events, "DELETE")
+			p.nextToken()
+		} else {
+			break
+		}
+
+		// Check for OR (multiple events)
+		if p.curTokenIs(lexer.OR) {
+			p.nextToken()
+		} else {
+			break
+		}
+	}
+
+	if len(stmt.Events) == 0 {
+		return nil, fmt.Errorf("expected at least one trigger event (INSERT, UPDATE, DELETE)")
+	}
+
+	// Expect ON
+	if !p.curTokenIs(lexer.ON) {
+		return nil, fmt.Errorf("expected ON, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse table name
+	if !p.curTokenIs(lexer.IDENT) {
+		return nil, fmt.Errorf("expected table name, got %s", p.curToken.Literal)
+	}
+	tableName := p.curToken.Literal
+	p.nextToken()
+
+	// Check for schema.table
+	if p.curTokenIs(lexer.DOT) {
+		p.nextToken()
+		if !p.curTokenIs(lexer.IDENT) {
+			return nil, fmt.Errorf("expected table name after schema, got %s", p.curToken.Literal)
+		}
+		stmt.TableName = TableReference{
+			Schema: tableName,
+			Name:   p.curToken.Literal,
+		}
+		p.nextToken()
+	} else {
+		stmt.TableName = TableReference{
+			Name: tableName,
+		}
+	}
+
+	// Check for FOR EACH ROW/STATEMENT
+	if p.curTokenIs(lexer.FOR) {
+		p.nextToken()
+		if !p.curTokenIs(lexer.EACH) {
+			return nil, fmt.Errorf("expected EACH after FOR, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+		if p.curTokenIs(lexer.ROW) {
+			stmt.ForEachRow = true
+			p.nextToken()
+		} else if p.curTokenIs(lexer.IDENT) && p.curToken.Literal == "STATEMENT" {
+			stmt.ForEachRow = false
+			p.nextToken()
+		} else {
+			return nil, fmt.Errorf("expected ROW or STATEMENT after FOR EACH, got %s", p.curToken.Literal)
+		}
+	}
+
+	// Check for WHEN condition (PostgreSQL)
+	if p.curTokenIs(lexer.WHEN) {
+		p.nextToken()
+		if !p.curTokenIs(lexer.LPAREN) {
+			return nil, fmt.Errorf("expected ( after WHEN, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+
+		// Parse condition expression
+		// For now, we'll skip detailed expression parsing and just consume until )
+		// In a full implementation, you'd call p.parseExpression() here
+		parenCount := 1
+		for parenCount > 0 && !p.curTokenIs(lexer.EOF) {
+			if p.curTokenIs(lexer.LPAREN) {
+				parenCount++
+			} else if p.curTokenIs(lexer.RPAREN) {
+				parenCount--
+			}
+			if parenCount > 0 {
+				p.nextToken()
+			}
+		}
+
+		if !p.curTokenIs(lexer.RPAREN) {
+			return nil, fmt.Errorf("expected ) after WHEN condition, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+	}
+
+	// Parse trigger body
+	// For now, we'll handle BEGIN...END blocks simply
+	if p.curTokenIs(lexer.BEGIN) {
+		// Skip to END for now - full body parsing would be more complex
+		body := &ProcedureBody{}
+		p.nextToken()
+
+		// Consume tokens until we find END
+		for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
+			p.nextToken()
+		}
+
+		if !p.curTokenIs(lexer.END) {
+			return nil, fmt.Errorf("expected END for trigger body, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+
+		stmt.Body = body
 	}
 
 	return stmt, nil

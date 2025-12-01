@@ -146,6 +146,16 @@ const (
 	ELSIF         // ELSIF (PostgreSQL, Oracle)
 	VARIADIC      // VARIADIC parameters (PostgreSQL)
 
+	// Trigger Keywords
+	TRIGGER // CREATE TRIGGER
+	BEFORE  // BEFORE INSERT/UPDATE/DELETE
+	AFTER   // AFTER INSERT/UPDATE/DELETE
+	INSTEAD // INSTEAD OF (SQL Server, Oracle)
+	OF      // OF (INSTEAD OF)
+	EACH    // FOR EACH ROW/STATEMENT
+	NEW     // NEW (trigger references)
+	OLD     // OLD (trigger references)
+
 	// Operators
 	ASSIGN  // =
 	EQ      // ==
@@ -300,6 +310,14 @@ var keywords = map[string]TokenType{
 	"ELSEIF":         ELSEIF,
 	"ELSIF":          ELSIF,
 	"VARIADIC":       VARIADIC,
+	"TRIGGER":        TRIGGER,
+	"BEFORE":         BEFORE,
+	"AFTER":          AFTER,
+	"INSTEAD":        INSTEAD,
+	"OF":             OF,
+	"EACH":           EACH,
+	"NEW":            NEW,
+	"OLD":            OLD,
 }
 
 type Token struct {
@@ -588,6 +606,22 @@ func (tt TokenType) String() string {
 		return "ELSIF"
 	case VARIADIC:
 		return "VARIADIC"
+	case TRIGGER:
+		return "TRIGGER"
+	case BEFORE:
+		return "BEFORE"
+	case AFTER:
+		return "AFTER"
+	case INSTEAD:
+		return "INSTEAD"
+	case OF:
+		return "OF"
+	case EACH:
+		return "EACH"
+	case NEW:
+		return "NEW"
+	case OLD:
+		return "OLD"
 	default:
 		return "UNKNOWN"
 	}
