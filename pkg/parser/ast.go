@@ -1,6 +1,9 @@
 package parser
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Node interface {
 	String() string
@@ -639,6 +642,58 @@ func (es *ExplainStatement) String() string {
 		return fmt.Sprintf("EXPLAIN ANALYZE %s", es.Statement.Type())
 	}
 	return fmt.Sprintf("EXPLAIN %s", es.Statement.Type())
+}
+
+// ============================================================================
+// VIEW Statements
+// ============================================================================
+
+// CreateViewStatement represents CREATE VIEW or CREATE MATERIALIZED VIEW
+type CreateViewStatement struct {
+	BaseNode
+	OrReplace    bool              // CREATE OR REPLACE VIEW
+	Materialized bool              // MATERIALIZED VIEW (PostgreSQL)
+	IfNotExists  bool              // IF NOT EXISTS
+	ViewName     TableReference    // View name (can have schema)
+	Columns      []string          // Optional column list
+	SelectStmt   *SelectStatement  // The SELECT query
+	WithCheck    bool              // WITH CHECK OPTION
+	Options      map[string]string // Dialect-specific options (e.g., SECURITY DEFINER)
+}
+
+func (cvs *CreateViewStatement) statementNode() {}
+func (cvs *CreateViewStatement) Type() string   { return "CreateViewStatement" }
+func (cvs *CreateViewStatement) String() string {
+	var result string
+	if cvs.OrReplace {
+		result = "CREATE OR REPLACE "
+	} else {
+		result = "CREATE "
+	}
+
+	if cvs.Materialized {
+		result += "MATERIALIZED "
+	}
+
+	result += "VIEW "
+
+	if cvs.IfNotExists {
+		result += "IF NOT EXISTS "
+	}
+
+	result += cvs.ViewName.String()
+
+	if len(cvs.Columns) > 0 {
+		result += fmt.Sprintf(" (%s)", strings.Join(cvs.Columns, ", "))
+	}
+
+	result += " AS " + cvs.SelectStmt.String()
+
+	if cvs.WithCheck {
+		result += " WITH CHECK OPTION"
+	}
+
+	return result
 }
 
 // ============================================================================

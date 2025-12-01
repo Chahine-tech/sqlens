@@ -36,13 +36,24 @@ func (p *Parser) parseCreateStatement() (Statement, error) {
 				stmt.(*CreateFunctionStatement).OrReplace = true
 			}
 			return stmt, err
+		} else if p.curTokenIs(lexer.VIEW) || p.curTokenIs(lexer.MATERIALIZED) {
+			stmt, err := p.parseCreateViewStatement()
+			if err != nil {
+				return nil, err
+			}
+			if stmt != nil {
+				stmt.OrReplace = true
+			}
+			return stmt, nil
 		}
-		return nil, fmt.Errorf("expected PROCEDURE or FUNCTION after CREATE OR REPLACE, got %s", p.curToken.Literal)
+		return nil, fmt.Errorf("expected PROCEDURE, FUNCTION, or VIEW after CREATE OR REPLACE, got %s", p.curToken.Literal)
 
 	case lexer.TABLE:
 		return p.parseCreateTableStatement()
 	case lexer.INDEX, lexer.UNIQUE:
 		return p.parseCreateIndexStatement()
+	case lexer.VIEW, lexer.MATERIALIZED:
+		return p.parseCreateViewStatement()
 	case lexer.PROCEDURE:
 		return p.parseCreateProcedureStatement()
 	case lexer.FUNCTION:
@@ -430,7 +441,7 @@ func (p *Parser) parseDropStatement() (*DropStatement, error) {
 	}
 	p.nextToken()
 
-	// Object type: TABLE, DATABASE, INDEX
+	// Object type: TABLE, DATABASE, INDEX, VIEW
 	switch p.curToken.Type {
 	case lexer.TABLE:
 		stmt.ObjectType = "TABLE"
@@ -438,8 +449,17 @@ func (p *Parser) parseDropStatement() (*DropStatement, error) {
 		stmt.ObjectType = "DATABASE"
 	case lexer.INDEX:
 		stmt.ObjectType = "INDEX"
+	case lexer.VIEW:
+		stmt.ObjectType = "VIEW"
+	case lexer.MATERIALIZED:
+		// DROP MATERIALIZED VIEW (PostgreSQL)
+		stmt.ObjectType = "MATERIALIZED VIEW"
+		p.nextToken()
+		if !p.curTokenIs(lexer.VIEW) {
+			return nil, fmt.Errorf("expected VIEW after MATERIALIZED, got %s", p.curToken.Literal)
+		}
 	default:
-		return nil, fmt.Errorf("expected TABLE, DATABASE, or INDEX, got %s", p.curToken.Literal)
+		return nil, fmt.Errorf("expected TABLE, DATABASE, INDEX, or VIEW, got %s", p.curToken.Literal)
 	}
 	p.nextToken()
 
@@ -682,6 +702,121 @@ func (p *Parser) parseCreateIndexStatement() (*CreateIndexStatement, error) {
 		}
 	}
 	p.nextToken() // consume )
+
+	return stmt, nil
+}
+
+// parseCreateViewStatement parses CREATE VIEW and CREATE MATERIALIZED VIEW statements
+func (p *Parser) parseCreateViewStatement() (*CreateViewStatement, error) {
+	stmt := &CreateViewStatement{
+		Options: make(map[string]string),
+	}
+
+	// Check for MATERIALIZED VIEW (PostgreSQL)
+	if p.curTokenIs(lexer.MATERIALIZED) {
+		stmt.Materialized = true
+		p.nextToken()
+	}
+
+	// Expect VIEW
+	if !p.curTokenIs(lexer.VIEW) {
+		return nil, fmt.Errorf("expected VIEW, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Check for IF NOT EXISTS
+	if p.curTokenIs(lexer.IF) {
+		p.nextToken()
+		if !p.curTokenIs(lexer.NOT) {
+			return nil, fmt.Errorf("expected NOT after IF, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+		if !p.curTokenIs(lexer.EXISTS) {
+			return nil, fmt.Errorf("expected EXISTS after NOT, got %s", p.curToken.Literal)
+		}
+		stmt.IfNotExists = true
+		p.nextToken()
+	}
+
+	// Parse view name (can have schema)
+	// We need a simpler approach than parseTableReference because AS is coming
+	viewName := TableReference{}
+
+	// Check for schema.table format
+	if !p.curTokenIs(lexer.IDENT) {
+		return nil, fmt.Errorf("expected view name, got %s", p.curToken.Literal)
+	}
+
+	firstPart := p.curToken.Literal
+	p.nextToken()
+
+	if p.curTokenIs(lexer.DOT) {
+		// schema.view_name
+		viewName.Schema = firstPart
+		p.nextToken()
+		if !p.curTokenIs(lexer.IDENT) {
+			return nil, fmt.Errorf("expected view name after schema, got %s", p.curToken.Literal)
+		}
+		viewName.Name = p.curToken.Literal
+		p.nextToken()
+	} else {
+		// Just view_name
+		viewName.Name = firstPart
+	}
+
+	stmt.ViewName = viewName
+
+	// Optional: column list (col1, col2, ...)
+	if p.curTokenIs(lexer.LPAREN) {
+		p.nextToken()
+		for !p.curTokenIs(lexer.RPAREN) {
+			if !p.curTokenIs(lexer.IDENT) {
+				return nil, fmt.Errorf("expected column name in view column list, got %s", p.curToken.Literal)
+			}
+			stmt.Columns = append(stmt.Columns, p.curToken.Literal)
+			p.nextToken()
+
+			if p.curTokenIs(lexer.COMMA) {
+				p.nextToken()
+			}
+		}
+		if !p.curTokenIs(lexer.RPAREN) {
+			return nil, fmt.Errorf("expected ) after column list, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+	}
+
+	// Expect AS
+	if !p.curTokenIs(lexer.AS) {
+		return nil, fmt.Errorf("expected AS, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse SELECT statement
+	if !p.curTokenIs(lexer.SELECT) {
+		return nil, fmt.Errorf("expected SELECT after AS, got %s", p.curToken.Literal)
+	}
+	selectStmt, err := p.parseSelectStatement()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse SELECT in view: %w", err)
+	}
+	stmt.SelectStmt = selectStmt
+
+	// Check for WITH CHECK OPTION
+	if p.curTokenIs(lexer.WITH) {
+		p.nextToken()
+		if p.curTokenIs(lexer.CHECK) {
+			p.nextToken()
+			if !p.curTokenIs(lexer.OPTION) {
+				return nil, fmt.Errorf("expected OPTION after WITH CHECK, got %s", p.curToken.Literal)
+			}
+			stmt.WithCheck = true
+			p.nextToken()
+		} else {
+			// If it's not CHECK, move back - might be end of statement
+			// For now, we'll just ignore unknown WITH clauses
+		}
+	}
 
 	return stmt, nil
 }

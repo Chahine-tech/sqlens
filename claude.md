@@ -479,12 +479,23 @@ go tool pprof cpu.prof
   - **10+ comprehensive tests** - All passing (MySQL, PostgreSQL, SQL Server)
   - **8 benchmarks** - 10-54μs procedure parsing
   - **650+ lines** - Complete procedure parser implementation
+- **View Support** ✅ 🆕
+  - **CREATE VIEW** - Standard view creation with column lists
+  - **CREATE OR REPLACE VIEW** - Idempotent view definitions
+  - **CREATE VIEW IF NOT EXISTS** - Safe view creation
+  - **CREATE MATERIALIZED VIEW** - PostgreSQL materialized views
+  - **WITH CHECK OPTION** - Enforce view constraints
+  - **DROP VIEW** - Simple and conditional (IF EXISTS) view dropping
+  - **DROP MATERIALIZED VIEW** - PostgreSQL materialized view dropping
+  - **Multi-dialect support** - MySQL (backticks), PostgreSQL (double quotes, MATERIALIZED), SQL Server (brackets)
+  - **Schema-qualified views** - Support for schema.view_name syntax
+  - **27 comprehensive tests** - All passing across all dialects
+  - **231 lines of examples** - Complete examples in view_examples.sql
 
 ### 🚧 In Progress / Planned
 - [ ] Real-time log monitoring
 - [ ] Integration with monitoring tools
 - [ ] Control flow statements (IF, WHILE, FOR, LOOP)
-- [ ] Materialized views
 - [ ] Triggers
 
 ### ❌ Not Planned

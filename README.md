@@ -81,9 +81,10 @@ See [docs/EXAMPLES.md](docs/EXAMPLES.md) for comprehensive usage examples.
 ### DDL (Data Definition Language)
 
 - ✅ **CREATE TABLE** - Columns, constraints, foreign keys, IF NOT EXISTS
-- ✅ **DROP** - TABLE/DATABASE/INDEX with IF EXISTS and CASCADE
+- ✅ **DROP** - TABLE/DATABASE/INDEX/VIEW with IF EXISTS and CASCADE
 - ✅ **ALTER TABLE** - ADD/DROP/MODIFY/CHANGE columns and constraints
 - ✅ **CREATE INDEX** - Simple and unique indexes with IF NOT EXISTS
+- ✅ **CREATE VIEW** - Views and materialized views with OR REPLACE, IF NOT EXISTS, WITH CHECK OPTION
 
 ### Transaction Control
 
@@ -269,13 +270,13 @@ make dev-log
 - [x] Schema-aware parsing and validation
 - [x] Query execution plan analysis
 - [x] Stored procedures and functions
+- [x] View definitions (CREATE VIEW, CREATE MATERIALIZED VIEW)
 - [x] Performance benchmarking
 - [x] Dialect-specific optimizations
 
 ### 🚧 Planned Features
 
 - [ ] Trigger parsing
-- [ ] View definitions (CREATE VIEW)
 - [ ] Real-time log monitoring
 - [ ] Integration with monitoring tools
 

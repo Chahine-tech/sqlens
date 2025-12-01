@@ -49,24 +49,28 @@ const (
 	DROP
 	ALTER
 	TABLE
-	WITH      // CTE
-	RECURSIVE // Recursive CTE
-	OVER      // Window functions
-	PARTITION // Window functions
-	ROWS      // Window frame
-	RANGE     // Window frame
-	UNBOUNDED // Window frame
-	PRECEDING // Window frame
-	FOLLOWING // Window frame
-	CURRENT   // Window frame
-	ROW       // Window frame
-	INTERSECT // Set operations
-	EXCEPT    // Set operations
-	CASE      // CASE expression
-	WHEN      // CASE expression
-	THEN      // CASE expression
-	ELSE      // CASE expression
-	END       // CASE/CTE end
+	VIEW         // CREATE VIEW
+	MATERIALIZED // MATERIALIZED VIEW (PostgreSQL)
+	WITH         // CTE or WITH CHECK OPTION
+	RECURSIVE    // Recursive CTE
+	CHECK        // WITH CHECK OPTION
+	OPTION       // WITH CHECK OPTION
+	OVER         // Window functions
+	PARTITION    // Window functions
+	ROWS         // Window frame
+	RANGE        // Window frame
+	UNBOUNDED    // Window frame
+	PRECEDING    // Window frame
+	FOLLOWING    // Window frame
+	CURRENT      // Window frame
+	ROW          // Window frame
+	INTERSECT    // Set operations
+	EXCEPT       // Set operations
+	CASE         // CASE expression
+	WHEN         // CASE expression
+	THEN         // CASE expression
+	ELSE         // CASE expression
+	END          // CASE/CTE end
 
 	// DDL Keywords
 	PRIMARY        // PRIMARY KEY
@@ -204,6 +208,10 @@ var keywords = map[string]TokenType{
 	"DROP":           DROP,
 	"ALTER":          ALTER,
 	"TABLE":          TABLE,
+	"VIEW":           VIEW,
+	"MATERIALIZED":   MATERIALIZED,
+	"CHECK":          CHECK,
+	"OPTION":         OPTION,
 	"LIKE":           LIKE,
 	"BETWEEN":        BETWEEN,
 	"IS":             IS,
@@ -398,6 +406,14 @@ func (tt TokenType) String() string {
 		return "ALTER"
 	case TABLE:
 		return "TABLE"
+	case VIEW:
+		return "VIEW"
+	case MATERIALIZED:
+		return "MATERIALIZED"
+	case CHECK:
+		return "CHECK"
+	case OPTION:
+		return "OPTION"
 	case ASSIGN:
 		return "ASSIGN"
 	case EQ:
