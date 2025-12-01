@@ -66,7 +66,7 @@ make test
 ./bin/sqlparser -sql "SELECT [user_id] FROM [users]" -dialect sqlserver
 ```
 
-See [EXAMPLES.md](EXAMPLES.md) for comprehensive usage examples.
+See [docs/EXAMPLES.md](docs/EXAMPLES.md) for comprehensive usage examples.
 
 ## 📚 Supported SQL Features
 
@@ -188,7 +188,7 @@ sql-parser-go/
 
 ## 🚀 Performance Highlights
 
-**Tested on Apple M2 Pro** - See [PERFORMANCE.md](PERFORMANCE.md) for complete benchmarks.
+**Tested on Apple M2 Pro** - See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for complete benchmarks.
 
 ### Parsing Performance
 
@@ -249,8 +249,9 @@ make dev-log
 
 ## 📖 Documentation
 
-- **[EXAMPLES.md](EXAMPLES.md)** - Comprehensive usage examples for all features
-- **[PERFORMANCE.md](PERFORMANCE.md)** - Detailed performance benchmarks and optimizations
+- **[docs/](docs/)** - Complete documentation (examples, performance, guides)
+  - **[EXAMPLES.md](docs/EXAMPLES.md)** - Comprehensive usage examples for all features
+  - **[PERFORMANCE.md](docs/PERFORMANCE.md)** - Detailed performance benchmarks and optimizations
 - **[DIALECT_SUPPORT.md](DIALECT_SUPPORT.md)** - Complete dialect-specific documentation
 - **[CLAUDE.md](CLAUDE.md)** - Developer guide for working with Claude Code
 - **[examples/](examples/)** - Example queries, logs, and schemas
@@ -302,7 +303,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support
 
 - 🐛 **Issues**: [GitHub Issues](https://github.com/Chahine-tech/sql-parser-go/issues)
-- 📖 **Documentation**: See [EXAMPLES.md](EXAMPLES.md) and [CLAUDE.md](CLAUDE.md)
+- 📖 **Documentation**: See [docs/](docs/), [DIALECT_SUPPORT.md](DIALECT_SUPPORT.md), and [CLAUDE.md](CLAUDE.md)
 - 💬 **Discussions**: [GitHub Discussions](https://github.com/Chahine-tech/sql-parser-go/discussions)
 
 ---
