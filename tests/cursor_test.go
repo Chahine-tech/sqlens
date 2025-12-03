@@ -143,22 +143,22 @@ func TestFetchWithInto(t *testing.T) {
 
 func TestDeallocateStatement(t *testing.T) {
 	tests := []struct {
-		name        string
-		deallocSQL  string
-		dialect     string
-		cursorName  string
+		name       string
+		deallocSQL string
+		dialect    string
+		cursorName string
 	}{
 		{
-			name:        "Simple DEALLOCATE",
-			deallocSQL:  `DEALLOCATE my_cursor`,
-			dialect:     "postgresql",
-			cursorName:  "my_cursor",
+			name:       "Simple DEALLOCATE",
+			deallocSQL: `DEALLOCATE my_cursor`,
+			dialect:    "postgresql",
+			cursorName: "my_cursor",
 		},
 		{
-			name:        "DEALLOCATE PREPARE (MySQL)",
-			deallocSQL:  `DEALLOCATE PREPARE stmt1`,
-			dialect:     "mysql",
-			cursorName:  "stmt1",
+			name:       "DEALLOCATE PREPARE (MySQL)",
+			deallocSQL: `DEALLOCATE PREPARE stmt1`,
+			dialect:    "mysql",
+			cursorName: "stmt1",
 		},
 	}
 
@@ -193,28 +193,28 @@ func TestDeallocateStatement(t *testing.T) {
 func TestCursorLifecycle(t *testing.T) {
 	// Test a complete cursor lifecycle: DECLARE, OPEN, FETCH, CLOSE, DEALLOCATE
 	tests := []struct {
-		name       string
-		cursorSQL  string
-		dialect    string
-		stmtType   string
+		name      string
+		cursorSQL string
+		dialect   string
+		stmtType  string
 	}{
 		{
-			name:       "OPEN cursor",
-			cursorSQL:  `OPEN my_cursor`,
-			dialect:    "mysql",
-			stmtType:   "OpenCursorStatement",
+			name:      "OPEN cursor",
+			cursorSQL: `OPEN my_cursor`,
+			dialect:   "mysql",
+			stmtType:  "OpenCursorStatement",
 		},
 		{
-			name:       "FETCH simple",
-			cursorSQL:  `FETCH my_cursor`,
-			dialect:    "mysql",
-			stmtType:   "FetchStatement",
+			name:      "FETCH simple",
+			cursorSQL: `FETCH my_cursor`,
+			dialect:   "mysql",
+			stmtType:  "FetchStatement",
 		},
 		{
-			name:       "CLOSE cursor",
-			cursorSQL:  `CLOSE my_cursor`,
-			dialect:    "postgresql",
-			stmtType:   "CloseStatement",
+			name:      "CLOSE cursor",
+			cursorSQL: `CLOSE my_cursor`,
+			dialect:   "postgresql",
+			stmtType:  "CloseStatement",
 		},
 	}
 

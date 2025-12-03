@@ -267,9 +267,9 @@ func (ds *DeleteStatement) String() string {
 type MergeStatement struct {
 	BaseNode
 	TargetTable      TableReference
-	SourceTable      interface{}       // Can be TableReference or SelectStatement
-	SourceAlias      string            // Alias for source
-	OnCondition      Expression        // MERGE condition
+	SourceTable      interface{}        // Can be TableReference or SelectStatement
+	SourceAlias      string             // Alias for source
+	OnCondition      Expression         // MERGE condition
 	WhenMatched      []*MergeWhenClause // WHEN MATCHED clauses (can have multiple)
 	WhenNotMatched   []*MergeWhenClause // WHEN NOT MATCHED clauses
 	WhenNotMatchedBy []*MergeWhenClause // WHEN NOT MATCHED BY SOURCE (SQL Server)
@@ -284,13 +284,13 @@ func (ms *MergeStatement) String() string {
 // MergeWhenClause represents a WHEN clause in MERGE
 type MergeWhenClause struct {
 	BaseNode
-	Matched   bool             // true for WHEN MATCHED, false for WHEN NOT MATCHED
-	BySource  bool             // true for WHEN NOT MATCHED BY SOURCE (SQL Server)
-	Condition Expression       // Optional AND condition
-	Action    *MergeAction     // The action to perform
+	Matched   bool         // true for WHEN MATCHED, false for WHEN NOT MATCHED
+	BySource  bool         // true for WHEN NOT MATCHED BY SOURCE (SQL Server)
+	Condition Expression   // Optional AND condition
+	Action    *MergeAction // The action to perform
 }
 
-func (mwc *MergeWhenClause) Type() string   { return "MergeWhenClause" }
+func (mwc *MergeWhenClause) Type() string { return "MergeWhenClause" }
 func (mwc *MergeWhenClause) String() string {
 	if mwc.Matched {
 		return "WHEN MATCHED"
@@ -1042,8 +1042,8 @@ func (ocs *OpenCursorStatement) String() string { return fmt.Sprintf("OPEN %s", 
 // FetchStatement represents FETCH cursor
 type FetchStatement struct {
 	BaseNode
-	Direction  string   // NEXT, PRIOR, FIRST, LAST, ABSOLUTE, RELATIVE (empty for simple FETCH)
-	Count      int      // For ABSOLUTE/RELATIVE n (0 means not specified)
+	Direction  string // NEXT, PRIOR, FIRST, LAST, ABSOLUTE, RELATIVE (empty for simple FETCH)
+	Count      int    // For ABSOLUTE/RELATIVE n (0 means not specified)
 	CursorName string
 	Variables  []string // INTO variables
 }
