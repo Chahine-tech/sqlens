@@ -273,6 +273,7 @@ make dev-log
 - [x] Stored procedures and functions
 - [x] View definitions (CREATE VIEW, CREATE MATERIALIZED VIEW)
 - [x] Trigger parsing (CREATE TRIGGER, DROP TRIGGER)
+- [x] **Control flow statements** (IF, WHILE, FOR, LOOP, REPEAT, EXIT, CONTINUE)
 - [x] Performance benchmarking
 - [x] Dialect-specific optimizations
 

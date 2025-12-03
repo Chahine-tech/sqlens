@@ -496,6 +496,10 @@ func (p *Parser) parseProcedureStatement() (Statement, error) {
 		// CONTINUE loop
 		return p.parseContinueStatement()
 
+	case lexer.REPEAT:
+		// REPEAT...UNTIL loop (MySQL)
+		return p.parseRepeatStatement()
+
 	default:
 		return nil, fmt.Errorf("unexpected statement in procedure body: %s", p.curToken.Literal)
 	}
@@ -554,23 +558,305 @@ func (p *Parser) parseReturnStatement() (Statement, error) {
 // These will be implemented in detail as needed
 
 func (p *Parser) parseIfStatement() (Statement, error) {
-	// TODO: Implement IF...THEN...ELSE parsing
-	return nil, fmt.Errorf("IF statement parsing not yet implemented")
+	stmt := &IfStatement{}
+
+	// Consume IF
+	p.nextToken()
+
+	// Parse condition
+	condition, err := p.parseExpression()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse IF condition: %w", err)
+	}
+	stmt.Condition = condition
+
+	// Expect THEN
+	if !p.curTokenIs(lexer.THEN) {
+		return nil, fmt.Errorf("expected THEN after IF condition, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse THEN block
+	for !p.curTokenIs(lexer.ELSEIF) && !p.curTokenIs(lexer.ELSIF) && !p.curTokenIs(lexer.ELSE) && !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.ENDIF) && !p.curTokenIs(lexer.EOF) {
+		blockStmt, err := p.parseProcedureStatement()
+		if err != nil {
+			return nil, err
+		}
+		if blockStmt != nil {
+			stmt.ThenBlock = append(stmt.ThenBlock, blockStmt)
+		}
+
+		// Consume semicolon if present
+		if p.curTokenIs(lexer.SEMICOLON) {
+			p.nextToken()
+		}
+	}
+
+	// Parse ELSEIF/ELSIF blocks
+	for p.curTokenIs(lexer.ELSEIF) || p.curTokenIs(lexer.ELSIF) {
+		p.nextToken() // Consume ELSEIF/ELSIF
+
+		elseIfBlock := &ElseIfBlock{}
+
+		// Parse condition
+		condition, err := p.parseExpression()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse ELSEIF condition: %w", err)
+		}
+		elseIfBlock.Condition = condition
+
+		// Expect THEN
+		if !p.curTokenIs(lexer.THEN) {
+			return nil, fmt.Errorf("expected THEN after ELSEIF condition, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+
+		// Parse ELSEIF block
+		for !p.curTokenIs(lexer.ELSEIF) && !p.curTokenIs(lexer.ELSIF) && !p.curTokenIs(lexer.ELSE) && !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.ENDIF) && !p.curTokenIs(lexer.EOF) {
+			blockStmt, err := p.parseProcedureStatement()
+			if err != nil {
+				return nil, err
+			}
+			if blockStmt != nil {
+				elseIfBlock.Block = append(elseIfBlock.Block, blockStmt)
+			}
+
+			// Consume semicolon if present
+			if p.curTokenIs(lexer.SEMICOLON) {
+				p.nextToken()
+			}
+		}
+
+		stmt.ElseIfList = append(stmt.ElseIfList, elseIfBlock)
+	}
+
+	// Parse ELSE block (optional)
+	if p.curTokenIs(lexer.ELSE) {
+		p.nextToken() // Consume ELSE
+
+		for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.ENDIF) && !p.curTokenIs(lexer.EOF) {
+			blockStmt, err := p.parseProcedureStatement()
+			if err != nil {
+				return nil, err
+			}
+			if blockStmt != nil {
+				stmt.ElseBlock = append(stmt.ElseBlock, blockStmt)
+			}
+
+			// Consume semicolon if present
+			if p.curTokenIs(lexer.SEMICOLON) {
+				p.nextToken()
+			}
+		}
+	}
+
+	// Expect END IF or ENDIF
+	if p.curTokenIs(lexer.END) {
+		p.nextToken()
+		// Optional IF keyword after END
+		if p.curTokenIs(lexer.IF) {
+			p.nextToken()
+		}
+	} else if p.curTokenIs(lexer.ENDIF) {
+		p.nextToken()
+	} else {
+		return nil, fmt.Errorf("expected END IF, got %s", p.curToken.Literal)
+	}
+
+	return stmt, nil
 }
 
 func (p *Parser) parseWhileStatement() (Statement, error) {
-	// TODO: Implement WHILE loop parsing
-	return nil, fmt.Errorf("WHILE statement parsing not yet implemented")
+	stmt := &WhileStatement{}
+
+	// Consume WHILE
+	p.nextToken()
+
+	// Parse condition
+	condition, err := p.parseExpression()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse WHILE condition: %w", err)
+	}
+	stmt.Condition = condition
+
+	// Expect DO
+	if !p.curTokenIs(lexer.DO) {
+		return nil, fmt.Errorf("expected DO after WHILE condition, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse loop body
+	for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.ENDWHILE) && !p.curTokenIs(lexer.EOF) {
+		blockStmt, err := p.parseProcedureStatement()
+		if err != nil {
+			return nil, err
+		}
+		if blockStmt != nil {
+			stmt.Block = append(stmt.Block, blockStmt)
+		}
+
+		// Consume semicolon if present
+		if p.curTokenIs(lexer.SEMICOLON) {
+			p.nextToken()
+		}
+	}
+
+	// Expect END WHILE or ENDWHILE
+	if p.curTokenIs(lexer.END) {
+		p.nextToken()
+		// Optional WHILE keyword after END
+		if p.curTokenIs(lexer.WHILE) {
+			p.nextToken()
+		}
+	} else if p.curTokenIs(lexer.ENDWHILE) {
+		p.nextToken()
+	} else {
+		return nil, fmt.Errorf("expected END WHILE, got %s", p.curToken.Literal)
+	}
+
+	return stmt, nil
 }
 
 func (p *Parser) parseLoopStatement() (Statement, error) {
-	// TODO: Implement LOOP parsing
-	return nil, fmt.Errorf("LOOP statement parsing not yet implemented")
+	stmt := &LoopStatement{}
+
+	// Check for optional label before LOOP
+	// Example: <<my_loop>> LOOP ... END LOOP;
+	// For now, we skip label parsing
+
+	// Consume LOOP
+	p.nextToken()
+
+	// Parse loop body
+	for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.ENDLOOP) && !p.curTokenIs(lexer.EOF) {
+		blockStmt, err := p.parseProcedureStatement()
+		if err != nil {
+			return nil, err
+		}
+		if blockStmt != nil {
+			stmt.Block = append(stmt.Block, blockStmt)
+		}
+
+		// Consume semicolon if present
+		if p.curTokenIs(lexer.SEMICOLON) {
+			p.nextToken()
+		}
+	}
+
+	// Expect END LOOP or ENDLOOP
+	if p.curTokenIs(lexer.END) {
+		p.nextToken()
+		// Optional LOOP keyword after END
+		if p.curTokenIs(lexer.LOOP) {
+			p.nextToken()
+		}
+	} else if p.curTokenIs(lexer.ENDLOOP) {
+		p.nextToken()
+	} else {
+		return nil, fmt.Errorf("expected END LOOP, got %s", p.curToken.Literal)
+	}
+
+	return stmt, nil
 }
 
 func (p *Parser) parseForStatement() (Statement, error) {
-	// TODO: Implement FOR loop parsing
-	return nil, fmt.Errorf("FOR statement parsing not yet implemented")
+	stmt := &ForStatement{}
+
+	// Consume FOR
+	p.nextToken()
+
+	// Parse loop variable
+	if !p.curTokenIs(lexer.IDENT) {
+		return nil, fmt.Errorf("expected loop variable name, got %s", p.curToken.Literal)
+	}
+	stmt.Variable = p.curToken.Literal
+	p.nextToken()
+
+	// Expect IN
+	if !p.curTokenIs(lexer.IN) {
+		return nil, fmt.Errorf("expected IN after loop variable, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Check for REVERSE (PostgreSQL)
+	if p.curTokenIs(lexer.REVERSE) {
+		stmt.IsReverse = true
+		p.nextToken()
+	}
+
+	// Parse start value
+	start, err := p.parseExpression()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse FOR start value: %w", err)
+	}
+	stmt.Start = start
+
+	// Expect .. (range operator) - may be tokenized as two DOT tokens
+	if p.curTokenIs(lexer.DOT) {
+		p.nextToken()
+		if !p.curTokenIs(lexer.DOT) {
+			return nil, fmt.Errorf("expected .. for range, got single .")
+		}
+		p.nextToken()
+	} else if p.curToken.Literal == ".." {
+		p.nextToken()
+	} else {
+		return nil, fmt.Errorf("expected .. for range, got %s", p.curToken.Literal)
+	}
+
+	// Parse end value
+	end, err := p.parseExpression()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse FOR end value: %w", err)
+	}
+	stmt.End = end
+
+	// Optional BY step (some dialects)
+	if p.curTokenIs(lexer.BY) {
+		p.nextToken()
+		step, err := p.parseExpression()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse FOR step value: %w", err)
+		}
+		stmt.Step = step
+	}
+
+	// Expect LOOP
+	if !p.curTokenIs(lexer.LOOP) {
+		return nil, fmt.Errorf("expected LOOP after FOR range, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse loop body
+	for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.ENDFOR) && !p.curTokenIs(lexer.EOF) {
+		blockStmt, err := p.parseProcedureStatement()
+		if err != nil {
+			return nil, err
+		}
+		if blockStmt != nil {
+			stmt.Block = append(stmt.Block, blockStmt)
+		}
+
+		// Consume semicolon if present
+		if p.curTokenIs(lexer.SEMICOLON) {
+			p.nextToken()
+		}
+	}
+
+	// Expect END LOOP or ENDFOR
+	if p.curTokenIs(lexer.END) {
+		p.nextToken()
+		// Optional LOOP/FOR keyword after END
+		if p.curTokenIs(lexer.LOOP) || p.curTokenIs(lexer.FOR) {
+			p.nextToken()
+		}
+	} else if p.curTokenIs(lexer.ENDFOR) {
+		p.nextToken()
+	} else {
+		return nil, fmt.Errorf("expected END LOOP, got %s", p.curToken.Literal)
+	}
+
+	return stmt, nil
 }
 
 func (p *Parser) parseCaseStatement() (Statement, error) {
@@ -615,13 +901,83 @@ func (p *Parser) parseCloseStatement() (Statement, error) {
 func (p *Parser) parseExitStatement() (Statement, error) {
 	stmt := &ExitStatement{}
 	p.nextToken() // Consume EXIT
-	// TODO: Parse optional label and WHEN condition
+
+	// Optional label
+	if p.curTokenIs(lexer.IDENT) {
+		stmt.Label = p.curToken.Literal
+		p.nextToken()
+	}
+
+	// Optional WHEN condition
+	if p.curTokenIs(lexer.WHEN) {
+		p.nextToken()
+		condition, err := p.parseExpression()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse EXIT WHEN condition: %w", err)
+		}
+		stmt.Condition = condition
+	}
+
 	return stmt, nil
 }
 
 func (p *Parser) parseContinueStatement() (Statement, error) {
 	stmt := &ContinueStatement{}
 	p.nextToken() // Consume CONTINUE/ITERATE
-	// TODO: Parse optional label and WHEN condition
+
+	// Optional label
+	if p.curTokenIs(lexer.IDENT) {
+		stmt.Label = p.curToken.Literal
+		p.nextToken()
+	}
+
+	// Optional WHEN condition
+	if p.curTokenIs(lexer.WHEN) {
+		p.nextToken()
+		condition, err := p.parseExpression()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse CONTINUE WHEN condition: %w", err)
+		}
+		stmt.Condition = condition
+	}
+
+	return stmt, nil
+}
+
+func (p *Parser) parseRepeatStatement() (Statement, error) {
+	stmt := &RepeatStatement{}
+
+	// Consume REPEAT
+	p.nextToken()
+
+	// Parse loop body
+	for !p.curTokenIs(lexer.UNTIL) && !p.curTokenIs(lexer.EOF) {
+		blockStmt, err := p.parseProcedureStatement()
+		if err != nil {
+			return nil, err
+		}
+		if blockStmt != nil {
+			stmt.Body = append(stmt.Body, blockStmt)
+		}
+
+		// Consume semicolon if present
+		if p.curTokenIs(lexer.SEMICOLON) {
+			p.nextToken()
+		}
+	}
+
+	// Expect UNTIL
+	if !p.curTokenIs(lexer.UNTIL) {
+		return nil, fmt.Errorf("expected UNTIL after REPEAT body, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse UNTIL condition
+	condition, err := p.parseExpression()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse REPEAT UNTIL condition: %w", err)
+	}
+	stmt.Condition = condition
+
 	return stmt, nil
 }

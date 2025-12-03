@@ -145,6 +145,13 @@ const (
 	ELSEIF        // ELSEIF (MySQL)
 	ELSIF         // ELSIF (PostgreSQL, Oracle)
 	VARIADIC      // VARIADIC parameters (PostgreSQL)
+	DO            // DO (WHILE...DO)
+	REPEAT        // REPEAT...UNTIL (MySQL)
+	UNTIL         // UNTIL (REPEAT...UNTIL)
+	ENDIF         // END IF (some dialects)
+	ENDWHILE      // END WHILE (some dialects)
+	ENDFOR        // END FOR (some dialects)
+	ENDLOOP       // END LOOP (some dialects)
 
 	// Trigger Keywords
 	TRIGGER // CREATE TRIGGER
@@ -310,6 +317,13 @@ var keywords = map[string]TokenType{
 	"ELSEIF":         ELSEIF,
 	"ELSIF":          ELSIF,
 	"VARIADIC":       VARIADIC,
+	"DO":             DO,
+	"REPEAT":         REPEAT,
+	"UNTIL":          UNTIL,
+	"ENDIF":          ENDIF,
+	"ENDWHILE":       ENDWHILE,
+	"ENDFOR":         ENDFOR,
+	"ENDLOOP":        ENDLOOP,
 	"TRIGGER":        TRIGGER,
 	"BEFORE":         BEFORE,
 	"AFTER":          AFTER,
@@ -453,6 +467,13 @@ var tokenNames = map[TokenType]string{
 	ELSEIF:         "ELSEIF",
 	ELSIF:          "ELSIF",
 	VARIADIC:       "VARIADIC",
+	DO:             "DO",
+	REPEAT:         "REPEAT",
+	UNTIL:          "UNTIL",
+	ENDIF:          "ENDIF",
+	ENDWHILE:       "ENDWHILE",
+	ENDFOR:         "ENDFOR",
+	ENDLOOP:        "ENDLOOP",
 	TRIGGER:        "TRIGGER",
 	BEFORE:         "BEFORE",
 	AFTER:          "AFTER",

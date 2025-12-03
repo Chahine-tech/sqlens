@@ -828,7 +828,26 @@ type IfStatement struct {
 
 func (is *IfStatement) statementNode() {}
 func (is *IfStatement) Type() string   { return "IfStatement" }
-func (is *IfStatement) String() string { return "IF Statement" }
+func (is *IfStatement) String() string {
+	result := "IF " + is.Condition.String() + " THEN"
+	for _, stmt := range is.ThenBlock {
+		result += " " + stmt.String()
+	}
+	for _, elseif := range is.ElseIfList {
+		result += " ELSEIF " + elseif.Condition.String() + " THEN"
+		for _, stmt := range elseif.Block {
+			result += " " + stmt.String()
+		}
+	}
+	if len(is.ElseBlock) > 0 {
+		result += " ELSE"
+		for _, stmt := range is.ElseBlock {
+			result += " " + stmt.String()
+		}
+	}
+	result += " END IF"
+	return result
+}
 
 // ElseIfBlock represents ELSEIF/ELSIF block
 type ElseIfBlock struct {
@@ -850,7 +869,18 @@ type WhileStatement struct {
 
 func (ws *WhileStatement) statementNode() {}
 func (ws *WhileStatement) Type() string   { return "WhileStatement" }
-func (ws *WhileStatement) String() string { return "WHILE Loop" }
+func (ws *WhileStatement) String() string {
+	result := ""
+	if ws.Label != "" {
+		result = ws.Label + ": "
+	}
+	result += "WHILE " + ws.Condition.String() + " DO"
+	for _, stmt := range ws.Block {
+		result += " " + stmt.String()
+	}
+	result += " END WHILE"
+	return result
+}
 
 // LoopStatement represents LOOP...END LOOP
 type LoopStatement struct {
@@ -861,7 +891,18 @@ type LoopStatement struct {
 
 func (ls *LoopStatement) statementNode() {}
 func (ls *LoopStatement) Type() string   { return "LoopStatement" }
-func (ls *LoopStatement) String() string { return "LOOP" }
+func (ls *LoopStatement) String() string {
+	result := ""
+	if ls.Label != "" {
+		result = ls.Label + ": "
+	}
+	result += "LOOP"
+	for _, stmt := range ls.Block {
+		result += " " + stmt.String()
+	}
+	result += " END LOOP"
+	return result
+}
 
 // ForStatement represents FOR loop
 type ForStatement struct {
@@ -877,7 +918,26 @@ type ForStatement struct {
 
 func (fs *ForStatement) statementNode() {}
 func (fs *ForStatement) Type() string   { return "ForStatement" }
-func (fs *ForStatement) String() string { return "FOR Loop" }
+func (fs *ForStatement) String() string {
+	result := ""
+	if fs.Label != "" {
+		result = fs.Label + ": "
+	}
+	result += "FOR " + fs.Variable + " IN "
+	if fs.IsReverse {
+		result += "REVERSE "
+	}
+	result += fs.Start.String() + ".." + fs.End.String()
+	if fs.Step != nil {
+		result += " BY " + fs.Step.String()
+	}
+	result += " LOOP"
+	for _, stmt := range fs.Block {
+		result += " " + stmt.String()
+	}
+	result += " END LOOP"
+	return result
+}
 
 // CaseStatement represents CASE statement (procedural, not expression)
 type CaseStatement struct {
@@ -1016,5 +1076,28 @@ func (cts *CreateTriggerStatement) String() string {
 	if cts.WhenCondition != nil {
 		result += " WHEN (" + cts.WhenCondition.String() + ")"
 	}
+	return result
+}
+
+// RepeatStatement represents a REPEAT...UNTIL loop (MySQL)
+type RepeatStatement struct {
+	BaseNode
+	Body      []Statement // Loop body
+	Condition Expression  // UNTIL condition
+	Label     string      // Optional loop label
+}
+
+func (rs *RepeatStatement) statementNode() {}
+func (rs *RepeatStatement) Type() string   { return "RepeatStatement" }
+func (rs *RepeatStatement) String() string {
+	result := ""
+	if rs.Label != "" {
+		result = rs.Label + ": "
+	}
+	result += "REPEAT"
+	for _, stmt := range rs.Body {
+		result += " " + stmt.String()
+	}
+	result += " UNTIL " + rs.Condition.String()
 	return result
 }

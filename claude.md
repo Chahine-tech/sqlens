@@ -505,11 +505,22 @@ go tool pprof cpu.prof
   - **Schema-qualified tables** - Support for triggers on schema.table
   - **23 comprehensive tests** - All passing across all dialects
   - **450 lines of examples** - Complete real-world examples in trigger_examples.sql
+- **Control Flow Statements** ✅ 🆕
+  - **IF...THEN...ELSE...END IF** - Full conditional logic with ELSEIF/ELSIF support
+  - **WHILE...DO...END WHILE** - Conditional loops with pre-condition check
+  - **FOR...LOOP** - Range-based iteration (PostgreSQL style) with REVERSE and BY step
+  - **LOOP...END LOOP** - Infinite loops with EXIT conditions
+  - **REPEAT...UNTIL** - Post-condition loops (MySQL)
+  - **EXIT / CONTINUE** - Loop control with optional WHEN conditions and labels
+  - **ITERATE** - MySQL synonym for CONTINUE
+  - **Nested control flow** - IF inside WHILE, FOR inside LOOP, etc.
+  - **Multi-dialect support** - MySQL, PostgreSQL, SQL Server compatible syntax
+  - **28+ comprehensive tests** - All passing across all control flow types
+  - **450+ lines of examples** - Real-world scenarios in control_flow_examples.sql
 
 ### 🚧 In Progress / Planned
 - [ ] Real-time log monitoring
 - [ ] Integration with monitoring tools
-- [ ] Control flow statements (IF, WHILE, FOR, LOOP)
 
 ### ❌ Not Planned
 - Web interface (project stays CLI-focused)
