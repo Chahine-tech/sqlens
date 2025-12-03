@@ -178,6 +178,22 @@ const (
 	NEW     // NEW (trigger references)
 	OLD     // OLD (trigger references)
 
+	// MERGE Statement Keywords
+	MERGE   // MERGE INTO
+	USING   // USING source
+	MATCHED // WHEN MATCHED
+
+	// Advanced Cursor Keywords
+	NEXT       // FETCH NEXT
+	PRIOR      // FETCH PRIOR
+	FIRST      // FETCH FIRST
+	LAST       // FETCH LAST
+	ABSOLUTE   // FETCH ABSOLUTE n
+	RELATIVE   // FETCH RELATIVE n
+	DEALLOCATE // DEALLOCATE cursor
+	ALLOCATE   // ALLOCATE cursor (SQL Server)
+	SCROLL     // SCROLL cursor (can move forward/backward)
+
 	// Operators
 	ASSIGN  // =
 	EQ      // ==
@@ -360,6 +376,18 @@ var keywords = map[string]TokenType{
 	"EACH":           EACH,
 	"NEW":            NEW,
 	"OLD":            OLD,
+	"MERGE":          MERGE,
+	"USING":          USING,
+	"MATCHED":        MATCHED,
+	"NEXT":           NEXT,
+	"PRIOR":          PRIOR,
+	"FIRST":          FIRST,
+	"LAST":           LAST,
+	"ABSOLUTE":       ABSOLUTE,
+	"RELATIVE":       RELATIVE,
+	"DEALLOCATE":     DEALLOCATE,
+	"ALLOCATE":       ALLOCATE,
+	"SCROLL":         SCROLL,
 }
 
 // tokenNames maps TokenType to string representation
@@ -523,6 +551,18 @@ var tokenNames = map[TokenType]string{
 	EACH:           "EACH",
 	NEW:            "NEW",
 	OLD:            "OLD",
+	MERGE:          "MERGE",
+	USING:          "USING",
+	MATCHED:        "MATCHED",
+	NEXT:           "NEXT",
+	PRIOR:          "PRIOR",
+	FIRST:          "FIRST",
+	LAST:           "LAST",
+	ABSOLUTE:       "ABSOLUTE",
+	RELATIVE:       "RELATIVE",
+	DEALLOCATE:     "DEALLOCATE",
+	ALLOCATE:       "ALLOCATE",
+	SCROLL:         "SCROLL",
 	PRIMARY:        "PRIMARY",
 	FOREIGN:        "FOREIGN",
 	KEY:            "KEY",

@@ -143,6 +143,8 @@ func (p *Parser) ParseStatement() (Statement, error) {
 		return p.parseUpdateStatement()
 	case lexer.DELETE:
 		return p.parseDeleteStatement()
+	case lexer.MERGE:
+		return p.parseMergeStatement()
 	case lexer.CREATE:
 		return p.parseCreateStatement()
 	case lexer.DROP:
@@ -1221,4 +1223,288 @@ func (p *Parser) parseDeleteStatement() (*DeleteStatement, error) {
 	}
 
 	return stmt, nil
+}
+
+func (p *Parser) parseMergeStatement() (*MergeStatement, error) {
+	stmt := &MergeStatement{}
+
+	if !p.curTokenIs(lexer.MERGE) {
+		return nil, fmt.Errorf("expected MERGE, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Optional: INTO keyword
+	if p.curTokenIs(lexer.INTO) {
+		p.nextToken()
+	}
+
+	// Parse target table
+	target, err := p.parseTableReference()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse target table: %w", err)
+	}
+	stmt.TargetTable = *target
+
+	// Expect USING keyword
+	if !p.curTokenIs(lexer.USING) {
+		return nil, fmt.Errorf("expected USING, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse source - can be table or subquery
+	if p.curTokenIs(lexer.LPAREN) {
+		// Subquery
+		p.nextToken()
+		selectStmt, err := p.parseSelectStatement()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse source subquery: %w", err)
+		}
+		stmt.SourceTable = selectStmt
+
+		if !p.curTokenIs(lexer.RPAREN) {
+			return nil, fmt.Errorf("expected ) after subquery, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+	} else {
+		// Table reference
+		source, err := p.parseTableReference()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse source table: %w", err)
+		}
+		stmt.SourceTable = *source
+	}
+
+	// Optional: source alias (AS alias)
+	if p.curTokenIs(lexer.AS) {
+		p.nextToken()
+		if p.curToken.Type != lexer.IDENT {
+			return nil, fmt.Errorf("expected identifier for source alias, got %s", p.curToken.Literal)
+		}
+		stmt.SourceAlias = p.curToken.Literal
+		p.nextToken()
+	} else if p.curToken.Type == lexer.IDENT {
+		// Alias without AS keyword
+		stmt.SourceAlias = p.curToken.Literal
+		p.nextToken()
+	}
+
+	// Expect ON condition
+	if !p.curTokenIs(lexer.ON) {
+		return nil, fmt.Errorf("expected ON, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse merge condition
+	condition, err := p.parseExpression()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse ON condition: %w", err)
+	}
+	stmt.OnCondition = condition
+
+	// Parse WHEN clauses
+	for p.curTokenIs(lexer.WHEN) {
+		whenClause, err := p.parseMergeWhenClause()
+		if err != nil {
+			return nil, err
+		}
+
+		if whenClause.Matched {
+			stmt.WhenMatched = append(stmt.WhenMatched, whenClause)
+		} else if whenClause.BySource {
+			stmt.WhenNotMatchedBy = append(stmt.WhenNotMatchedBy, whenClause)
+		} else {
+			stmt.WhenNotMatched = append(stmt.WhenNotMatched, whenClause)
+		}
+	}
+
+	// Must have at least one WHEN clause
+	if len(stmt.WhenMatched) == 0 && len(stmt.WhenNotMatched) == 0 && len(stmt.WhenNotMatchedBy) == 0 {
+		return nil, fmt.Errorf("MERGE must have at least one WHEN clause")
+	}
+
+	// Optional: semicolon
+	if p.curTokenIs(lexer.SEMICOLON) {
+		p.nextToken()
+	}
+
+	return stmt, nil
+}
+
+func (p *Parser) parseMergeWhenClause() (*MergeWhenClause, error) {
+	clause := &MergeWhenClause{}
+
+	if !p.curTokenIs(lexer.WHEN) {
+		return nil, fmt.Errorf("expected WHEN, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Check for NOT MATCHED
+	if p.curTokenIs(lexer.NOT) {
+		p.nextToken()
+		if !p.curTokenIs(lexer.MATCHED) {
+			return nil, fmt.Errorf("expected MATCHED after NOT, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+		clause.Matched = false
+
+		// Check for BY SOURCE (SQL Server)
+		if p.curTokenIs(lexer.BY) {
+			p.nextToken()
+			// Expect SOURCE (we don't have a SOURCE token, so check IDENT)
+			if p.curToken.Type == lexer.IDENT && p.curToken.Literal == "SOURCE" {
+				p.nextToken()
+				clause.BySource = true
+			} else {
+				return nil, fmt.Errorf("expected SOURCE after BY, got %s", p.curToken.Literal)
+			}
+		}
+	} else if p.curTokenIs(lexer.MATCHED) {
+		p.nextToken()
+		clause.Matched = true
+	} else {
+		return nil, fmt.Errorf("expected MATCHED or NOT MATCHED, got %s", p.curToken.Literal)
+	}
+
+	// Optional: AND condition
+	if p.curTokenIs(lexer.AND) {
+		p.nextToken()
+		condition, err := p.parseExpression()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse AND condition: %w", err)
+		}
+		clause.Condition = condition
+	}
+
+	// Expect THEN
+	if !p.curTokenIs(lexer.THEN) {
+		return nil, fmt.Errorf("expected THEN, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse action
+	action, err := p.parseMergeAction()
+	if err != nil {
+		return nil, err
+	}
+	clause.Action = action
+
+	return clause, nil
+}
+
+func (p *Parser) parseMergeAction() (*MergeAction, error) {
+	action := &MergeAction{}
+
+	switch p.curToken.Type {
+	case lexer.UPDATE:
+		action.ActionType = "UPDATE"
+		p.nextToken()
+
+		// Expect SET
+		if !p.curTokenIs(lexer.SET) {
+			return nil, fmt.Errorf("expected SET after UPDATE, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+
+		// Parse column = value pairs
+		for {
+			if p.curToken.Type != lexer.IDENT {
+				return nil, fmt.Errorf("expected column name, got %s", p.curToken.Literal)
+			}
+			columnName := p.curToken.Literal
+			p.nextToken()
+
+			// Handle qualified column name (table.column)
+			if p.curTokenIs(lexer.DOT) {
+				p.nextToken()
+				if p.curToken.Type != lexer.IDENT {
+					return nil, fmt.Errorf("expected column name after dot, got %s", p.curToken.Literal)
+				}
+				columnName = columnName + "." + p.curToken.Literal
+				p.nextToken()
+			}
+
+			if !p.curTokenIs(lexer.ASSIGN) {
+				return nil, fmt.Errorf("expected = after column name, got %s", p.curToken.Literal)
+			}
+			p.nextToken()
+
+			value, err := p.parseExpression()
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse value: %w", err)
+			}
+
+			action.Columns = append(action.Columns, columnName)
+			action.Values = append(action.Values, value)
+
+			if !p.curTokenIs(lexer.COMMA) {
+				break
+			}
+			p.nextToken()
+		}
+
+	case lexer.INSERT:
+		action.ActionType = "INSERT"
+		p.nextToken()
+
+		// Optional: column list
+		if p.curTokenIs(lexer.LPAREN) {
+			p.nextToken()
+			for {
+				if p.curToken.Type != lexer.IDENT {
+					return nil, fmt.Errorf("expected column name, got %s", p.curToken.Literal)
+				}
+				action.Columns = append(action.Columns, p.curToken.Literal)
+				p.nextToken()
+
+				if !p.curTokenIs(lexer.COMMA) {
+					break
+				}
+				p.nextToken()
+			}
+
+			if !p.curTokenIs(lexer.RPAREN) {
+				return nil, fmt.Errorf("expected ) after column list, got %s", p.curToken.Literal)
+			}
+			p.nextToken()
+		}
+
+		// Expect VALUES
+		if !p.curTokenIs(lexer.VALUES) {
+			return nil, fmt.Errorf("expected VALUES after INSERT, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+
+		// Parse values
+		if !p.curTokenIs(lexer.LPAREN) {
+			return nil, fmt.Errorf("expected ( after VALUES, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+
+		for {
+			value, err := p.parseExpression()
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse value: %w", err)
+			}
+			action.Values = append(action.Values, value)
+
+			if !p.curTokenIs(lexer.COMMA) {
+				break
+			}
+			p.nextToken()
+		}
+
+		if !p.curTokenIs(lexer.RPAREN) {
+			return nil, fmt.Errorf("expected ) after values, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+
+	case lexer.DELETE:
+		action.ActionType = "DELETE"
+		p.nextToken()
+
+	default:
+		return nil, fmt.Errorf("expected UPDATE, INSERT, or DELETE, got %s", p.curToken.Literal)
+	}
+
+	return action, nil
 }

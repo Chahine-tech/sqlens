@@ -180,6 +180,23 @@ func (l *Lexer) NextToken() Token {
 		tok.Position = l.position
 		tok.Line = l.line
 		tok.Column = l.column
+	case '$':
+		// PostgreSQL dollar-quoted strings: $tag$...$tag$ or $$...$$
+		if l.dialect.Name() == "PostgreSQL" {
+			_, str := l.readDollarQuotedString()
+			if str != "" {
+				tok.Type = STRING
+				tok.Literal = str
+				tok.Position = l.position
+				tok.Line = l.line
+				tok.Column = l.column
+			} else {
+				// Not a dollar-quoted string, treat as illegal
+				tok = newToken(ILLEGAL, l.ch, l.position, l.line, l.column)
+			}
+		} else {
+			tok = newToken(ILLEGAL, l.ch, l.position, l.line, l.column)
+		}
 	case 0:
 		tok.Literal = ""
 		tok.Type = EOF
@@ -303,6 +320,65 @@ func (l *Lexer) readBacktickIdentifier() string {
 		}
 	}
 	return l.input[position:l.position]
+}
+
+// readDollarQuotedString reads PostgreSQL dollar-quoted strings: $tag$...$tag$ or $$...$$
+// Returns the tag and the string content
+func (l *Lexer) readDollarQuotedString() (string, string) {
+	startPos := l.position
+	l.readChar() // skip first $
+
+	// Read tag (if any) - can be empty for $$
+	tagStart := l.position
+	for l.ch != '$' && l.ch != 0 {
+		if !isLetter(l.ch) && !isDigit(l.ch) {
+			// Invalid character in tag, not a dollar-quoted string
+			l.position = startPos
+			l.readPosition = startPos + 1
+			l.ch = l.input[l.position]
+			return "", ""
+		}
+		l.readChar()
+	}
+
+	if l.ch == 0 {
+		// Reached EOF without finding closing $
+		return "", ""
+	}
+
+	tag := l.input[tagStart:l.position]
+	l.readChar() // skip closing $ of opening delimiter
+
+	// Now read until we find the closing delimiter $tag$
+	contentStart := l.position
+	closingDelimiter := "$" + tag + "$"
+
+	for {
+		if l.ch == 0 {
+			// Reached EOF without finding closing delimiter
+			return "", ""
+		}
+
+		// Check if we're at the start of the closing delimiter
+		if l.ch == '$' {
+			// Check if the rest matches
+			remaining := len(l.input) - l.position
+			delimLen := len(closingDelimiter)
+			if remaining >= delimLen {
+				potentialDelim := l.input[l.position : l.position+delimLen]
+				if potentialDelim == closingDelimiter {
+					// Found the closing delimiter
+					content := l.input[contentStart:l.position]
+					// Skip past the closing delimiter
+					for i := 0; i < delimLen; i++ {
+						l.readChar()
+					}
+					return tag, content
+				}
+			}
+		}
+		l.readChar()
+	}
 }
 
 func isLetter(ch byte) bool {

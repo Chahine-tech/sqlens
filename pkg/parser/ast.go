@@ -263,6 +263,52 @@ func (ds *DeleteStatement) String() string {
 	return fmt.Sprintf("DELETE FROM %s", ds.From.Name)
 }
 
+// MERGE Statement
+type MergeStatement struct {
+	BaseNode
+	TargetTable      TableReference
+	SourceTable      interface{}       // Can be TableReference or SelectStatement
+	SourceAlias      string            // Alias for source
+	OnCondition      Expression        // MERGE condition
+	WhenMatched      []*MergeWhenClause // WHEN MATCHED clauses (can have multiple)
+	WhenNotMatched   []*MergeWhenClause // WHEN NOT MATCHED clauses
+	WhenNotMatchedBy []*MergeWhenClause // WHEN NOT MATCHED BY SOURCE (SQL Server)
+}
+
+func (ms *MergeStatement) statementNode() {}
+func (ms *MergeStatement) Type() string   { return "MergeStatement" }
+func (ms *MergeStatement) String() string {
+	return fmt.Sprintf("MERGE INTO %s", ms.TargetTable.Name)
+}
+
+// MergeWhenClause represents a WHEN clause in MERGE
+type MergeWhenClause struct {
+	BaseNode
+	Matched   bool             // true for WHEN MATCHED, false for WHEN NOT MATCHED
+	BySource  bool             // true for WHEN NOT MATCHED BY SOURCE (SQL Server)
+	Condition Expression       // Optional AND condition
+	Action    *MergeAction     // The action to perform
+}
+
+func (mwc *MergeWhenClause) Type() string   { return "MergeWhenClause" }
+func (mwc *MergeWhenClause) String() string {
+	if mwc.Matched {
+		return "WHEN MATCHED"
+	}
+	return "WHEN NOT MATCHED"
+}
+
+// MergeAction represents an action in a MERGE WHEN clause
+type MergeAction struct {
+	BaseNode
+	ActionType string       // UPDATE, INSERT, DELETE
+	Columns    []string     // For UPDATE/INSERT
+	Values     []Expression // For UPDATE/INSERT
+}
+
+func (ma *MergeAction) Type() string   { return "MergeAction" }
+func (ma *MergeAction) String() string { return ma.ActionType }
+
 // Unary Expression (NOT, etc.)
 type UnaryExpression struct {
 	BaseNode
@@ -996,13 +1042,20 @@ func (ocs *OpenCursorStatement) String() string { return fmt.Sprintf("OPEN %s", 
 // FetchStatement represents FETCH cursor
 type FetchStatement struct {
 	BaseNode
+	Direction  string   // NEXT, PRIOR, FIRST, LAST, ABSOLUTE, RELATIVE (empty for simple FETCH)
+	Count      int      // For ABSOLUTE/RELATIVE n (0 means not specified)
 	CursorName string
 	Variables  []string // INTO variables
 }
 
 func (fs *FetchStatement) statementNode() {}
 func (fs *FetchStatement) Type() string   { return "FetchStatement" }
-func (fs *FetchStatement) String() string { return fmt.Sprintf("FETCH %s", fs.CursorName) }
+func (fs *FetchStatement) String() string {
+	if fs.Direction != "" {
+		return fmt.Sprintf("FETCH %s %s", fs.Direction, fs.CursorName)
+	}
+	return fmt.Sprintf("FETCH %s", fs.CursorName)
+}
 
 // CloseStatement represents CLOSE cursor
 type CloseStatement struct {
@@ -1013,6 +1066,16 @@ type CloseStatement struct {
 func (cs *CloseStatement) statementNode() {}
 func (cs *CloseStatement) Type() string   { return "CloseStatement" }
 func (cs *CloseStatement) String() string { return fmt.Sprintf("CLOSE %s", cs.CursorName) }
+
+// DeallocateStatement represents DEALLOCATE cursor
+type DeallocateStatement struct {
+	BaseNode
+	CursorName string
+}
+
+func (ds *DeallocateStatement) statementNode() {}
+func (ds *DeallocateStatement) Type() string   { return "DeallocateStatement" }
+func (ds *DeallocateStatement) String() string { return fmt.Sprintf("DEALLOCATE %s", ds.CursorName) }
 
 // ExitStatement represents EXIT/BREAK (loop control)
 type ExitStatement struct {

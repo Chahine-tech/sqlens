@@ -207,7 +207,10 @@ Since we now have advanced features support, here's the pattern:
 - ✅ CTEs (WITH clause) - see [cte_examples.sql](examples/queries/cte_examples.sql)
 - ✅ Window Functions - see [window_function_examples.sql](examples/queries/window_function_examples.sql)
 - ✅ Set Operations - see [set_operations_examples.sql](examples/queries/set_operations_examples.sql)
-- ⚠️ CASE expressions - AST nodes exist, parsing needs expression parser refactoring
+- ✅ CASE expressions - see [case_expression_examples.sql](examples/queries/case_expression_examples.sql)
+- ✅ **MERGE Statement** - see [merge_examples.sql](examples/queries/merge_examples.sql) 🆕
+- ✅ **Advanced Cursor Operations** - FETCH NEXT/PRIOR/FIRST/LAST/ABSOLUTE/RELATIVE, DEALLOCATE 🆕
+- ✅ **PostgreSQL Dollar-Quoted Strings** - $$...$$, $tag$...$tag$ for function bodies 🆕
 
 ### Task 6: Improve Performance
 **Target**: Lexer, Parser, or Analyzer
@@ -530,6 +533,31 @@ go tool pprof cpu.prof
   - **Multi-dialect support** - SQL Server, PostgreSQL, MySQL, Oracle syntax
   - **23+ comprehensive tests** - All passing across all exception types
   - **400+ lines of examples** - Real-world error handling scenarios in exception_handling_examples.sql
+- **MERGE Statement Support** ✅ 🆕
+  - **MERGE INTO...USING...ON** - Full MERGE statement syntax
+  - **WHEN MATCHED / NOT MATCHED** - All conditional clauses
+  - **WHEN NOT MATCHED BY SOURCE** - SQL Server specific clause
+  - **Multiple WHEN clauses** - Multiple conditions per statement
+  - **UPDATE / INSERT / DELETE actions** - All DML actions in MERGE
+  - **Subquery sources** - Support for subqueries as data sources
+  - **Qualified column names** - table.column syntax in SET clauses
+  - **18+ comprehensive tests** - All passing across SQL Server, PostgreSQL, Oracle
+  - **350+ lines of examples** - Real-world ETL and synchronization scenarios in merge_examples.sql
+- **Advanced Cursor Operations** ✅ 🆕
+  - **FETCH directions** - NEXT, PRIOR, FIRST, LAST, ABSOLUTE n, RELATIVE n
+  - **FETCH...INTO** - Fetch cursor values into variables
+  - **DEALLOCATE** - Deallocate cursor or prepared statement
+  - **FROM/IN keywords** - PostgreSQL-style FETCH FROM cursor
+  - **12+ comprehensive tests** - All passing for MySQL, PostgreSQL, SQL Server
+  - **Full cursor lifecycle** - DECLARE, OPEN, FETCH, CLOSE, DEALLOCATE
+- **PostgreSQL Dollar-Quoted Strings** ✅ 🆕
+  - **$$...$$ syntax** - Simple dollar quoting for strings
+  - **$tag$...$tag$ syntax** - Tagged dollar quoting with custom delimiters
+  - **Nested content** - Supports $$ inside tagged strings
+  - **Function bodies** - Perfect for PostgreSQL function/procedure bodies
+  - **Multi-line support** - Preserves newlines and formatting
+  - **Dialect-specific** - Only enabled for PostgreSQL dialect
+  - **13+ comprehensive tests** - All passing including nested and edge cases
 
 ### 🚧 In Progress / Planned
 - [ ] Real-time log monitoring

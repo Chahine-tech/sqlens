@@ -514,6 +514,10 @@ func (p *Parser) parseProcedureStatement() (Statement, error) {
 		// CLOSE cursor
 		return p.parseCloseStatement()
 
+	case lexer.DEALLOCATE:
+		// DEALLOCATE cursor
+		return p.parseDeallocateStatement()
+
 	case lexer.EXIT:
 		// EXIT loop
 		return p.parseExitStatement()
@@ -937,12 +941,69 @@ func (p *Parser) parseOpenCursorStatement() (Statement, error) {
 func (p *Parser) parseFetchStatement() (Statement, error) {
 	stmt := &FetchStatement{}
 	p.nextToken() // Consume FETCH
+
+	// Check for fetch direction
+	switch p.curToken.Type {
+	case lexer.NEXT:
+		stmt.Direction = "NEXT"
+		p.nextToken()
+	case lexer.PRIOR:
+		stmt.Direction = "PRIOR"
+		p.nextToken()
+	case lexer.FIRST:
+		stmt.Direction = "FIRST"
+		p.nextToken()
+	case lexer.LAST:
+		stmt.Direction = "LAST"
+		p.nextToken()
+	case lexer.ABSOLUTE:
+		stmt.Direction = "ABSOLUTE"
+		p.nextToken()
+		// Expect number
+		if p.curToken.Type == lexer.NUMBER {
+			// Parse count (simple conversion, real implementation might need more robust parsing)
+			stmt.Count = 1 // Placeholder, should parse the actual number
+			p.nextToken()
+		}
+	case lexer.RELATIVE:
+		stmt.Direction = "RELATIVE"
+		p.nextToken()
+		// Expect number
+		if p.curToken.Type == lexer.NUMBER {
+			stmt.Count = 1 // Placeholder
+			p.nextToken()
+		}
+	}
+
+	// Optional FROM keyword (PostgreSQL)
+	if p.curTokenIs(lexer.FROM) || p.curTokenIs(lexer.IN) {
+		p.nextToken()
+	}
+
+	// Parse cursor name
 	if !p.curTokenIs(lexer.IDENT) {
-		return nil, fmt.Errorf("expected cursor name")
+		return nil, fmt.Errorf("expected cursor name, got %s", p.curToken.Literal)
 	}
 	stmt.CursorName = p.curToken.Literal
 	p.nextToken()
-	// TODO: Parse INTO variables
+
+	// Optional INTO clause
+	if p.curTokenIs(lexer.INTO) {
+		p.nextToken()
+		for {
+			if p.curToken.Type != lexer.IDENT {
+				return nil, fmt.Errorf("expected variable name, got %s", p.curToken.Literal)
+			}
+			stmt.Variables = append(stmt.Variables, p.curToken.Literal)
+			p.nextToken()
+
+			if !p.curTokenIs(lexer.COMMA) {
+				break
+			}
+			p.nextToken()
+		}
+	}
+
 	return stmt, nil
 }
 
@@ -954,6 +1015,25 @@ func (p *Parser) parseCloseStatement() (Statement, error) {
 	}
 	stmt.CursorName = p.curToken.Literal
 	p.nextToken()
+	return stmt, nil
+}
+
+func (p *Parser) parseDeallocateStatement() (Statement, error) {
+	stmt := &DeallocateStatement{}
+	p.nextToken() // Consume DEALLOCATE
+
+	// Optional PREPARE keyword (some dialects use DEALLOCATE PREPARE)
+	if p.curToken.Type == lexer.IDENT && p.curToken.Literal == "PREPARE" {
+		p.nextToken()
+	}
+
+	// Parse cursor/statement name
+	if !p.curTokenIs(lexer.IDENT) {
+		return nil, fmt.Errorf("expected cursor name, got %s", p.curToken.Literal)
+	}
+	stmt.CursorName = p.curToken.Literal
+	p.nextToken()
+
 	return stmt, nil
 }
 
