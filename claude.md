@@ -517,6 +517,19 @@ go tool pprof cpu.prof
   - **Multi-dialect support** - MySQL, PostgreSQL, SQL Server compatible syntax
   - **28+ comprehensive tests** - All passing across all control flow types
   - **450+ lines of examples** - Real-world scenarios in control_flow_examples.sql
+- **Exception Handling** ✅ 🆕
+  - **TRY...CATCH** - SQL Server exception handling with BEGIN TRY/END TRY/BEGIN CATCH/END CATCH
+  - **EXCEPTION...WHEN** - PostgreSQL/Oracle exception blocks with WHEN clauses
+  - **DECLARE HANDLER** - MySQL handler declarations (CONTINUE, EXIT, UNDO)
+  - **RAISE** - PostgreSQL error raising (EXCEPTION, NOTICE, WARNING, INFO, LOG, DEBUG)
+  - **THROW** - SQL Server error throwing with error number, message, and state
+  - **SIGNAL** - MySQL error signaling with SQLSTATE and properties
+  - **Exception conditions** - SQLEXCEPTION, SQLWARNING, NOT FOUND, SQLSTATE, OTHERS
+  - **Nested exception handling** - TRY within TRY, multiple WHEN clauses
+  - **Re-raise support** - THROW and RAISE without parameters
+  - **Multi-dialect support** - SQL Server, PostgreSQL, MySQL, Oracle syntax
+  - **23+ comprehensive tests** - All passing across all exception types
+  - **400+ lines of examples** - Real-world error handling scenarios in exception_handling_examples.sql
 
 ### 🚧 In Progress / Planned
 - [ ] Real-time log monitoring

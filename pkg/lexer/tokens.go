@@ -153,6 +153,21 @@ const (
 	ENDFOR        // END FOR (some dialects)
 	ENDLOOP       // END LOOP (some dialects)
 
+	// Exception Handling Keywords
+	TRY          // TRY (SQL Server)
+	CATCH        // CATCH (SQL Server)
+	EXCEPTION    // EXCEPTION (PostgreSQL, Oracle)
+	HANDLER      // HANDLER (MySQL)
+	SQLEXCEPTION // SQLEXCEPTION (MySQL)
+	SQLWARNING   // SQLWARNING (MySQL)
+	FOUND        // NOT FOUND (MySQL)
+	THROW        // THROW (SQL Server)
+	RAISE        // RAISE (PostgreSQL, Oracle)
+	SIGNAL       // SIGNAL (MySQL)
+	SQLSTATE     // SQLSTATE (error codes)
+	MESSAGE_TEXT // MESSAGE_TEXT (MySQL SIGNAL)
+	OTHERS       // OTHERS (PostgreSQL catch-all)
+
 	// Trigger Keywords
 	TRIGGER // CREATE TRIGGER
 	BEFORE  // BEFORE INSERT/UPDATE/DELETE
@@ -324,6 +339,19 @@ var keywords = map[string]TokenType{
 	"ENDWHILE":       ENDWHILE,
 	"ENDFOR":         ENDFOR,
 	"ENDLOOP":        ENDLOOP,
+	"TRY":            TRY,
+	"CATCH":          CATCH,
+	"EXCEPTION":      EXCEPTION,
+	"HANDLER":        HANDLER,
+	"SQLEXCEPTION":   SQLEXCEPTION,
+	"SQLWARNING":     SQLWARNING,
+	"FOUND":          FOUND,
+	"THROW":          THROW,
+	"RAISE":          RAISE,
+	"SIGNAL":         SIGNAL,
+	"SQLSTATE":       SQLSTATE,
+	"MESSAGE_TEXT":   MESSAGE_TEXT,
+	"OTHERS":         OTHERS,
 	"TRIGGER":        TRIGGER,
 	"BEFORE":         BEFORE,
 	"AFTER":          AFTER,
@@ -474,6 +502,19 @@ var tokenNames = map[TokenType]string{
 	ENDWHILE:       "ENDWHILE",
 	ENDFOR:         "ENDFOR",
 	ENDLOOP:        "ENDLOOP",
+	TRY:            "TRY",
+	CATCH:          "CATCH",
+	EXCEPTION:      "EXCEPTION",
+	HANDLER:        "HANDLER",
+	SQLEXCEPTION:   "SQLEXCEPTION",
+	SQLWARNING:     "SQLWARNING",
+	FOUND:          "FOUND",
+	THROW:          "THROW",
+	RAISE:          "RAISE",
+	SIGNAL:         "SIGNAL",
+	SQLSTATE:       "SQLSTATE",
+	MESSAGE_TEXT:   "MESSAGE_TEXT",
+	OTHERS:         "OTHERS",
 	TRIGGER:        "TRIGGER",
 	BEFORE:         "BEFORE",
 	AFTER:          "AFTER",

@@ -782,9 +782,10 @@ func (pp *ProcedureParameter) String() string {
 // ProcedureBody represents the body of a procedure/function
 type ProcedureBody struct {
 	BaseNode
-	Statements []Statement     // List of statements in the body
-	Variables  []*VariableDecl // DECLARE variables
-	Cursors    []*CursorDecl   // DECLARE cursors
+	Statements     []Statement     // List of statements in the body
+	Variables      []*VariableDecl // DECLARE variables
+	Cursors        []*CursorDecl   // DECLARE cursors
+	ExceptionBlock *ExceptionBlock // EXCEPTION block (PostgreSQL/Oracle)
 }
 
 func (pb *ProcedureBody) Type() string { return "ProcedureBody" }
@@ -1099,5 +1100,138 @@ func (rs *RepeatStatement) String() string {
 		result += " " + stmt.String()
 	}
 	result += " UNTIL " + rs.Condition.String()
+	return result
+}
+
+// ====================================================================
+// Exception Handling Statements
+// ====================================================================
+
+// TryStatement represents TRY...CATCH block (SQL Server)
+type TryStatement struct {
+	BaseNode
+	TryBlock   []Statement // Statements in TRY block
+	CatchBlock *CatchBlock // CATCH block
+}
+
+type CatchBlock struct {
+	BaseNode
+	Body []Statement // Statements in CATCH block
+}
+
+func (ts *TryStatement) statementNode() {}
+func (ts *TryStatement) Type() string   { return "TryStatement" }
+func (ts *TryStatement) String() string {
+	result := "BEGIN TRY"
+	for _, stmt := range ts.TryBlock {
+		result += " " + stmt.String()
+	}
+	result += " END TRY BEGIN CATCH"
+	if ts.CatchBlock != nil {
+		for _, stmt := range ts.CatchBlock.Body {
+			result += " " + stmt.String()
+		}
+	}
+	result += " END CATCH"
+	return result
+}
+
+// ExceptionBlock represents EXCEPTION...WHEN block (PostgreSQL/Oracle)
+type ExceptionBlock struct {
+	BaseNode
+	WhenClauses []*WhenExceptionClause // WHEN exception_name THEN ...
+}
+
+type WhenExceptionClause struct {
+	BaseNode
+	ExceptionName string      // Exception type (SQLEXCEPTION, division_by_zero, OTHERS, etc.)
+	Body          []Statement // Statements to execute
+}
+
+func (eb *ExceptionBlock) Type() string { return "ExceptionBlock" }
+func (eb *ExceptionBlock) String() string {
+	result := "EXCEPTION"
+	for _, when := range eb.WhenClauses {
+		result += " WHEN " + when.ExceptionName + " THEN"
+		for _, stmt := range when.Body {
+			result += " " + stmt.String()
+		}
+	}
+	return result
+}
+
+// HandlerDeclaration represents DECLARE...HANDLER (MySQL)
+type HandlerDeclaration struct {
+	BaseNode
+	HandlerType string      // CONTINUE, EXIT, UNDO
+	Condition   string      // SQLEXCEPTION, SQLWARNING, NOT FOUND, SQLSTATE, etc.
+	Body        []Statement // Handler body
+}
+
+func (hd *HandlerDeclaration) statementNode() {}
+func (hd *HandlerDeclaration) Type() string   { return "HandlerDeclaration" }
+func (hd *HandlerDeclaration) String() string {
+	result := "DECLARE " + hd.HandlerType + " HANDLER FOR " + hd.Condition
+	for _, stmt := range hd.Body {
+		result += " " + stmt.String()
+	}
+	return result
+}
+
+// RaiseStatement represents RAISE (PostgreSQL/Oracle)
+type RaiseStatement struct {
+	BaseNode
+	Level   string     // EXCEPTION, NOTICE, WARNING, INFO, LOG, DEBUG
+	Message Expression // Error message
+	Code    string     // Optional SQLSTATE code
+}
+
+func (rs *RaiseStatement) statementNode() {}
+func (rs *RaiseStatement) Type() string   { return "RaiseStatement" }
+func (rs *RaiseStatement) String() string {
+	result := "RAISE"
+	if rs.Level != "" {
+		result += " " + rs.Level
+	}
+	if rs.Message != nil {
+		result += " " + rs.Message.String()
+	}
+	return result
+}
+
+// ThrowStatement represents THROW (SQL Server)
+type ThrowStatement struct {
+	BaseNode
+	ErrorNumber int        // Error number
+	Message     Expression // Error message
+	State       int        // Error state
+}
+
+func (ts *ThrowStatement) statementNode() {}
+func (ts *ThrowStatement) Type() string   { return "ThrowStatement" }
+func (ts *ThrowStatement) String() string {
+	if ts.ErrorNumber == 0 {
+		return "THROW" // Re-throw current exception
+	}
+	return fmt.Sprintf("THROW %d, %s, %d", ts.ErrorNumber, ts.Message.String(), ts.State)
+}
+
+// SignalStatement represents SIGNAL (MySQL)
+type SignalStatement struct {
+	BaseNode
+	SqlState   string            // SQLSTATE value
+	Properties map[string]string // MESSAGE_TEXT, MYSQL_ERRNO, etc.
+}
+
+func (ss *SignalStatement) statementNode() {}
+func (ss *SignalStatement) Type() string   { return "SignalStatement" }
+func (ss *SignalStatement) String() string {
+	result := "SIGNAL SQLSTATE '" + ss.SqlState + "'"
+	if len(ss.Properties) > 0 {
+		result += " SET"
+		for k, v := range ss.Properties {
+			result += " " + k + " = '" + v + "'"
+		}
+	}
 	return result
 }

@@ -338,9 +338,26 @@ func (p *Parser) parseProcedureBody() (*ProcedureBody, error) {
 	}
 	p.nextToken()
 
-	// Parse declarations (DECLARE variables, cursors)
+	// Parse declarations (DECLARE variables, cursors, handlers)
 	for p.curTokenIs(lexer.DECLARE) {
 		p.nextToken()
+
+		// Check if it's a handler declaration (MySQL)
+		// DECLARE CONTINUE|EXIT|UNDO HANDLER FOR condition statement
+		if p.curToken.Literal == "CONTINUE" || p.curToken.Literal == "EXIT" || p.curToken.Literal == "UNDO" {
+			handler, err := p.parseHandlerDeclaration()
+			if err != nil {
+				return nil, err
+			}
+			// For now, store handlers as statements
+			body.Statements = append(body.Statements, handler)
+
+			// Consume semicolon if present
+			if p.curTokenIs(lexer.SEMICOLON) {
+				p.nextToken()
+			}
+			continue
+		}
 
 		// Check if it's a cursor or variable
 		// Save position to peek ahead
@@ -406,8 +423,8 @@ func (p *Parser) parseProcedureBody() (*ProcedureBody, error) {
 		}
 	}
 
-	// Parse statements until END
-	for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
+	// Parse statements until END or EXCEPTION
+	for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EXCEPTION) && !p.curTokenIs(lexer.EOF) {
 		stmt, err := p.parseProcedureStatement()
 		if err != nil {
 			return nil, err
@@ -420,6 +437,15 @@ func (p *Parser) parseProcedureBody() (*ProcedureBody, error) {
 		if p.curTokenIs(lexer.SEMICOLON) {
 			p.nextToken()
 		}
+	}
+
+	// Check for EXCEPTION block (PostgreSQL/Oracle)
+	if p.curTokenIs(lexer.EXCEPTION) {
+		exceptionBlock, err := p.parseExceptionBlock()
+		if err != nil {
+			return nil, err
+		}
+		body.ExceptionBlock = exceptionBlock
 	}
 
 	// Consume END
@@ -499,6 +525,39 @@ func (p *Parser) parseProcedureStatement() (Statement, error) {
 	case lexer.REPEAT:
 		// REPEAT...UNTIL loop (MySQL)
 		return p.parseRepeatStatement()
+
+	case lexer.TRY:
+		// TRY...CATCH (SQL Server)
+		return p.parseTryStatement()
+
+	case lexer.RAISE:
+		// RAISE (PostgreSQL/Oracle)
+		return p.parseRaiseStatement()
+
+	case lexer.THROW:
+		// THROW (SQL Server)
+		return p.parseThrowStatement()
+
+	case lexer.SIGNAL:
+		// SIGNAL (MySQL)
+		return p.parseSignalStatement()
+
+	case lexer.BEGIN, lexer.START:
+		// BEGIN TRY...CATCH (SQL Server) - nested OR BEGIN TRANSACTION
+		if p.curTokenIs(lexer.BEGIN) && p.peekTokenIs(lexer.TRY) {
+			p.nextToken() // consume BEGIN
+			return p.parseTryStatement()
+		}
+		// BEGIN/START TRANSACTION
+		return p.parseBeginTransaction()
+
+	case lexer.COMMIT:
+		// COMMIT transaction
+		return p.parseCommit()
+
+	case lexer.ROLLBACK:
+		// ROLLBACK transaction
+		return p.parseRollback()
 
 	default:
 		return nil, fmt.Errorf("unexpected statement in procedure body: %s", p.curToken.Literal)
@@ -978,6 +1037,385 @@ func (p *Parser) parseRepeatStatement() (Statement, error) {
 		return nil, fmt.Errorf("failed to parse REPEAT UNTIL condition: %w", err)
 	}
 	stmt.Condition = condition
+
+	return stmt, nil
+}
+
+// ====================================================================
+// Exception Handling Parsers
+// ====================================================================
+
+// parseTryStatement parses TRY...CATCH (SQL Server)
+func (p *Parser) parseTryStatement() (Statement, error) {
+	stmt := &TryStatement{}
+
+	// Expect BEGIN TRY
+	if !p.curTokenIs(lexer.TRY) {
+		return nil, fmt.Errorf("expected TRY, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse TRY block statements
+	for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
+		blockStmt, err := p.parseProcedureStatement()
+		if err != nil {
+			return nil, err
+		}
+		if blockStmt != nil {
+			stmt.TryBlock = append(stmt.TryBlock, blockStmt)
+		}
+
+		// Consume semicolon if present
+		if p.curTokenIs(lexer.SEMICOLON) {
+			p.nextToken()
+		}
+	}
+
+	// Expect END TRY
+	if !p.curTokenIs(lexer.END) {
+		return nil, fmt.Errorf("expected END TRY, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	if !p.curTokenIs(lexer.TRY) {
+		return nil, fmt.Errorf("expected TRY after END, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Expect BEGIN CATCH
+	if !p.curTokenIs(lexer.BEGIN) {
+		return nil, fmt.Errorf("expected BEGIN CATCH, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	if !p.curTokenIs(lexer.CATCH) {
+		return nil, fmt.Errorf("expected CATCH, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse CATCH block
+	stmt.CatchBlock = &CatchBlock{}
+	for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
+		blockStmt, err := p.parseProcedureStatement()
+		if err != nil {
+			return nil, err
+		}
+		if blockStmt != nil {
+			stmt.CatchBlock.Body = append(stmt.CatchBlock.Body, blockStmt)
+		}
+
+		// Consume semicolon if present
+		if p.curTokenIs(lexer.SEMICOLON) {
+			p.nextToken()
+		}
+	}
+
+	// Expect END CATCH
+	if !p.curTokenIs(lexer.END) {
+		return nil, fmt.Errorf("expected END CATCH, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	if !p.curTokenIs(lexer.CATCH) {
+		return nil, fmt.Errorf("expected CATCH after END, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	return stmt, nil
+}
+
+// parseRaiseStatement parses RAISE (PostgreSQL/Oracle)
+func (p *Parser) parseRaiseStatement() (Statement, error) {
+	stmt := &RaiseStatement{}
+
+	// Consume RAISE
+	p.nextToken()
+
+	// Optional level (EXCEPTION, NOTICE, WARNING, etc.)
+	if p.curTokenIs(lexer.EXCEPTION) || p.curToken.Literal == "NOTICE" ||
+		p.curToken.Literal == "WARNING" || p.curToken.Literal == "INFO" {
+		stmt.Level = p.curToken.Literal
+		p.nextToken()
+	}
+
+	// Parse message (if present)
+	if !p.curTokenIs(lexer.SEMICOLON) && !p.curTokenIs(lexer.EOF) {
+		message, err := p.parseExpression()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse RAISE message: %w", err)
+		}
+		stmt.Message = message
+	}
+
+	return stmt, nil
+}
+
+// parseThrowStatement parses THROW (SQL Server)
+func (p *Parser) parseThrowStatement() (Statement, error) {
+	stmt := &ThrowStatement{}
+
+	// Consume THROW
+	p.nextToken()
+
+	// Check if it's a re-throw (no parameters)
+	if p.curTokenIs(lexer.SEMICOLON) || p.curTokenIs(lexer.EOF) {
+		return stmt, nil
+	}
+
+	// Parse error number
+	if !p.curTokenIs(lexer.NUMBER) {
+		return nil, fmt.Errorf("expected error number after THROW, got %s", p.curToken.Literal)
+	}
+	// Convert to int (simplified - should handle errors)
+	stmt.ErrorNumber = 50000 // Placeholder
+	p.nextToken()
+
+	// Expect comma
+	if !p.curTokenIs(lexer.COMMA) {
+		return nil, fmt.Errorf("expected comma after error number, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse message
+	message, err := p.parseExpression()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse THROW message: %w", err)
+	}
+	stmt.Message = message
+
+	// Expect comma
+	if !p.curTokenIs(lexer.COMMA) {
+		return nil, fmt.Errorf("expected comma after message, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse state
+	if !p.curTokenIs(lexer.NUMBER) {
+		return nil, fmt.Errorf("expected state number, got %s", p.curToken.Literal)
+	}
+	stmt.State = 1 // Placeholder
+	p.nextToken()
+
+	return stmt, nil
+}
+
+// parseSignalStatement parses SIGNAL (MySQL)
+func (p *Parser) parseSignalStatement() (Statement, error) {
+	stmt := &SignalStatement{
+		Properties: make(map[string]string),
+	}
+
+	// Consume SIGNAL
+	p.nextToken()
+
+	// Expect SQLSTATE
+	if !p.curTokenIs(lexer.SQLSTATE) {
+		return nil, fmt.Errorf("expected SQLSTATE after SIGNAL, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse SQLSTATE value (should be a string like '45000')
+	if !p.curTokenIs(lexer.STRING) {
+		return nil, fmt.Errorf("expected SQLSTATE value, got %s", p.curToken.Literal)
+	}
+	stmt.SqlState = p.curToken.Literal
+	p.nextToken()
+
+	// Optional SET clause
+	if p.curTokenIs(lexer.SET) {
+		p.nextToken()
+
+		// Parse properties (MESSAGE_TEXT = 'value', etc.)
+		for {
+			// Property name
+			if !p.curTokenIs(lexer.IDENT) && !p.curTokenIs(lexer.MESSAGE_TEXT) {
+				break
+			}
+			propName := p.curToken.Literal
+			p.nextToken()
+
+			// Expect =
+			if !p.curTokenIs(lexer.ASSIGN) {
+				return nil, fmt.Errorf("expected = after property name, got %s", p.curToken.Literal)
+			}
+			p.nextToken()
+
+			// Property value (can be string or number)
+			if !p.curTokenIs(lexer.STRING) && !p.curTokenIs(lexer.NUMBER) {
+				return nil, fmt.Errorf("expected property value, got %s", p.curToken.Literal)
+			}
+			propValue := p.curToken.Literal
+			p.nextToken()
+
+			stmt.Properties[propName] = propValue
+
+			// Check for comma (more properties)
+			if p.curTokenIs(lexer.COMMA) {
+				p.nextToken()
+			} else {
+				break
+			}
+		}
+	}
+
+	return stmt, nil
+}
+
+// parseExceptionBlock parses EXCEPTION...WHEN block (PostgreSQL/Oracle)
+// EXCEPTION
+//
+//	WHEN exception_name THEN
+//	    statements
+//	WHEN OTHERS THEN
+//	    statements
+func (p *Parser) parseExceptionBlock() (*ExceptionBlock, error) {
+	block := &ExceptionBlock{
+		WhenClauses: make([]*WhenExceptionClause, 0),
+	}
+
+	// Consume EXCEPTION keyword
+	if !p.curTokenIs(lexer.EXCEPTION) {
+		return nil, fmt.Errorf("expected EXCEPTION, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Parse WHEN clauses
+	for p.curTokenIs(lexer.WHEN) {
+		p.nextToken()
+
+		whenClause := &WhenExceptionClause{
+			Body: make([]Statement, 0),
+		}
+
+		// Exception name (can be OTHERS, SQLEXCEPTION, or specific exception like division_by_zero)
+		if !p.curTokenIs(lexer.OTHERS) && !p.curTokenIs(lexer.SQLEXCEPTION) && !p.curTokenIs(lexer.IDENT) {
+			return nil, fmt.Errorf("expected exception name after WHEN, got %s", p.curToken.Literal)
+		}
+		whenClause.ExceptionName = p.curToken.Literal
+		p.nextToken()
+
+		// Expect THEN
+		if !p.curTokenIs(lexer.THEN) {
+			return nil, fmt.Errorf("expected THEN after exception name, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+
+		// Parse handler statements until next WHEN or END
+		for !p.curTokenIs(lexer.WHEN) && !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
+			stmt, err := p.parseProcedureStatement()
+			if err != nil {
+				return nil, err
+			}
+			if stmt != nil {
+				whenClause.Body = append(whenClause.Body, stmt)
+			}
+
+			// Consume semicolon if present
+			if p.curTokenIs(lexer.SEMICOLON) {
+				p.nextToken()
+			}
+		}
+
+		block.WhenClauses = append(block.WhenClauses, whenClause)
+	}
+
+	return block, nil
+}
+
+// parseHandlerDeclaration parses DECLARE HANDLER (MySQL)
+// DECLARE handler_type HANDLER FOR condition_value statement
+// handler_type: CONTINUE | EXIT | UNDO
+// condition_value: SQLEXCEPTION | SQLWARNING | NOT FOUND | SQLSTATE 'value' | error_code
+func (p *Parser) parseHandlerDeclaration() (*HandlerDeclaration, error) {
+	stmt := &HandlerDeclaration{
+		Body: make([]Statement, 0),
+	}
+
+	// Handler type (CONTINUE, EXIT, UNDO)
+	if p.curToken.Literal != "CONTINUE" && p.curToken.Literal != "EXIT" && p.curToken.Literal != "UNDO" {
+		return nil, fmt.Errorf("expected handler type (CONTINUE, EXIT, UNDO), got %s", p.curToken.Literal)
+	}
+	stmt.HandlerType = p.curToken.Literal
+	p.nextToken()
+
+	// Expect HANDLER keyword
+	if !p.curTokenIs(lexer.HANDLER) {
+		return nil, fmt.Errorf("expected HANDLER, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Expect FOR
+	if !p.curTokenIs(lexer.FOR) {
+		return nil, fmt.Errorf("expected FOR, got %s", p.curToken.Literal)
+	}
+	p.nextToken()
+
+	// Condition value
+	if p.curTokenIs(lexer.SQLEXCEPTION) {
+		stmt.Condition = "SQLEXCEPTION"
+		p.nextToken()
+	} else if p.curTokenIs(lexer.SQLWARNING) {
+		stmt.Condition = "SQLWARNING"
+		p.nextToken()
+	} else if p.curTokenIs(lexer.NOT) {
+		// NOT FOUND
+		p.nextToken()
+		if !p.curTokenIs(lexer.FOUND) {
+			return nil, fmt.Errorf("expected FOUND after NOT, got %s", p.curToken.Literal)
+		}
+		stmt.Condition = "NOT FOUND"
+		p.nextToken()
+	} else if p.curTokenIs(lexer.SQLSTATE) {
+		// SQLSTATE 'value'
+		p.nextToken()
+		if !p.curTokenIs(lexer.STRING) {
+			return nil, fmt.Errorf("expected SQLSTATE value, got %s", p.curToken.Literal)
+		}
+		stmt.Condition = "SQLSTATE " + p.curToken.Literal
+		p.nextToken()
+	} else if p.curTokenIs(lexer.NUMBER) {
+		// MySQL error code (e.g., 1062 for duplicate key)
+		stmt.Condition = p.curToken.Literal
+		p.nextToken()
+	} else {
+		return nil, fmt.Errorf("expected condition value (SQLEXCEPTION, SQLWARNING, NOT FOUND, SQLSTATE, or error code), got %s", p.curToken.Literal)
+	}
+
+	// Handler body - can be a single statement or BEGIN...END block
+	if p.curTokenIs(lexer.BEGIN) {
+		p.nextToken()
+
+		// Parse statements until END
+		for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
+			bodyStmt, err := p.parseProcedureStatement()
+			if err != nil {
+				return nil, err
+			}
+			if bodyStmt != nil {
+				stmt.Body = append(stmt.Body, bodyStmt)
+			}
+
+			// Consume semicolon if present
+			if p.curTokenIs(lexer.SEMICOLON) {
+				p.nextToken()
+			}
+		}
+
+		// Consume END
+		if !p.curTokenIs(lexer.END) {
+			return nil, fmt.Errorf("expected END for handler body, got %s", p.curToken.Literal)
+		}
+		p.nextToken()
+	} else {
+		// Single statement
+		bodyStmt, err := p.parseProcedureStatement()
+		if err != nil {
+			return nil, err
+		}
+		if bodyStmt != nil {
+			stmt.Body = append(stmt.Body, bodyStmt)
+		}
+	}
 
 	return stmt, nil
 }

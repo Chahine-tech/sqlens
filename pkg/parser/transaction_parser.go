@@ -10,10 +10,17 @@ import (
 // Syntax:
 //   - BEGIN [WORK | TRANSACTION]
 //   - START TRANSACTION
+//
+// Note: If BEGIN is followed by TRY, it's a TRY...CATCH block, not a transaction
 func (p *Parser) parseBeginTransaction() (Statement, error) {
-	stmt := &BeginTransactionStatement{}
-
 	if p.curTokenIs(lexer.BEGIN) {
+		// Peek ahead to see if it's BEGIN TRY (SQL Server TRY...CATCH)
+		if p.peekTokenIs(lexer.TRY) {
+			p.nextToken() // consume BEGIN
+			return p.parseTryStatement()
+		}
+
+		stmt := &BeginTransactionStatement{}
 		stmt.UseStart = false
 		p.nextToken()
 
@@ -21,7 +28,9 @@ func (p *Parser) parseBeginTransaction() (Statement, error) {
 		if p.curTokenIs(lexer.WORK) || p.curTokenIs(lexer.TRANSACTION) {
 			p.nextToken()
 		}
+		return stmt, nil
 	} else if p.curTokenIs(lexer.START) {
+		stmt := &BeginTransactionStatement{}
 		stmt.UseStart = true
 		p.nextToken()
 
@@ -30,9 +39,10 @@ func (p *Parser) parseBeginTransaction() (Statement, error) {
 			return nil, fmt.Errorf("expected TRANSACTION after START, got %s", p.curToken.Literal)
 		}
 		p.nextToken()
+		return stmt, nil
 	}
 
-	return stmt, nil
+	return nil, fmt.Errorf("expected BEGIN or START for transaction, got %s", p.curToken.Literal)
 }
 
 // parseCommit parses COMMIT statements

@@ -161,6 +161,12 @@ func (p *Parser) ParseStatement() (Statement, error) {
 		return p.parseReleaseSavepoint()
 	case lexer.EXPLAIN:
 		return p.parseExplainStatement()
+	case lexer.RAISE:
+		return p.parseRaiseStatement()
+	case lexer.THROW:
+		return p.parseThrowStatement()
+	case lexer.SIGNAL:
+		return p.parseSignalStatement()
 	case lexer.IF:
 		return p.parseIfStatement()
 	case lexer.WHILE:
