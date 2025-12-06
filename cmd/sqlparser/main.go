@@ -14,6 +14,7 @@ import (
 	"github.com/Chahine-tech/sql-parser-go/pkg/analyzer"
 	"github.com/Chahine-tech/sql-parser-go/pkg/dialect"
 	"github.com/Chahine-tech/sql-parser-go/pkg/logger"
+	"github.com/Chahine-tech/sql-parser-go/pkg/monitor"
 	"github.com/Chahine-tech/sql-parser-go/pkg/parser"
 )
 
@@ -31,14 +32,17 @@ const banner = `
 
 func main() {
 	var (
-		queryFile    = flag.String("query", "", "File containing the SQL query")
-		queryText    = flag.String("sql", "", "SQL query string")
-		logFile      = flag.String("log", "", "SQL Server log file")
-		outputFormat = flag.String("output", "json", "Output format (json, table)")
-		verbose      = flag.Bool("verbose", false, "Verbose mode")
-		configFile   = flag.String("config", "", "Configuration file path")
-		dialectFlag  = flag.String("dialect", "", "SQL dialect (mysql, postgresql, sqlserver, sqlite, oracle)")
-		showHelp     = flag.Bool("help", false, "Show help")
+		queryFile     = flag.String("query", "", "File containing the SQL query")
+		queryText     = flag.String("sql", "", "SQL query string")
+		logFile       = flag.String("log", "", "SQL Server log file")
+		outputFormat  = flag.String("output", "json", "Output format (json, table)")
+		verbose       = flag.Bool("verbose", false, "Verbose mode")
+		configFile    = flag.String("config", "", "Configuration file path")
+		dialectFlag   = flag.String("dialect", "", "SQL dialect (mysql, postgresql, sqlserver, sqlite, oracle)")
+		showHelp      = flag.Bool("help", false, "Show help")
+		watchMode     = flag.Bool("watch", false, "Watch log file for real-time monitoring")
+		tailLines     = flag.Int("tail", 10, "Number of lines to tail when starting watch mode")
+		slowThreshold = flag.Float64("slow", 1.0, "Slow query threshold in seconds")
 	)
 	flag.Parse()
 
@@ -74,9 +78,16 @@ func main() {
 			os.Exit(1)
 		}
 	} else if *logFile != "" {
-		if err := parseLogFile(*logFile, cfg, *verbose); err != nil {
-			fmt.Printf("Error parsing log file: %v\n", err)
-			os.Exit(1)
+		if *watchMode {
+			if err := watchLogFile(*logFile, cfg, *verbose, *tailLines, *slowThreshold); err != nil {
+				fmt.Printf("Error watching log file: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			if err := parseLogFile(*logFile, cfg, *verbose); err != nil {
+				fmt.Printf("Error parsing log file: %v\n", err)
+				os.Exit(1)
+			}
 		}
 	} else {
 		showUsage()
@@ -91,18 +102,23 @@ func showUsage() {
 	fmt.Println("  sqlparser -query file.sql          Analyze SQL query from file")
 	fmt.Println("  sqlparser -sql \"SELECT * FROM...\"   Analyze SQL query from string")
 	fmt.Println("  sqlparser -log logfile.log          Parse SQL Server log file")
+	fmt.Println("  sqlparser -log logfile.log -watch   Watch log file in real-time")
 	fmt.Println()
 	fmt.Println("Options:")
 	fmt.Println("  -output FORMAT    Output format: json, table (default: json)")
 	fmt.Println("  -dialect DIALECT  SQL dialect: mysql, postgresql, sqlserver, sqlite, oracle (default: sqlserver)")
 	fmt.Println("  -verbose          Enable verbose output")
 	fmt.Println("  -config FILE      Configuration file path")
+	fmt.Println("  -watch            Enable real-time log monitoring (use with -log)")
+	fmt.Println("  -tail N           Number of lines to tail when starting watch (default: 10)")
+	fmt.Println("  -slow SECONDS     Slow query threshold in seconds (default: 1.0)")
 	fmt.Println("  -help             Show this help")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  sqlparser -query complex_query.sql -output json -dialect mysql")
 	fmt.Println("  sqlparser -sql \"SELECT u.name, o.total FROM users u JOIN orders o ON u.id = o.user_id\" -dialect postgresql")
 	fmt.Println("  sqlparser -log sqlserver.log -output table -verbose")
+	fmt.Println("  sqlparser -log sqlserver.log -watch -tail 20 -slow 2.0 -dialect mysql")
 }
 
 func analyzeQueryFile(filename string, cfg *config.Config, verbose bool) error {
@@ -180,6 +196,136 @@ func analyzeQueryString(sql string, cfg *config.Config, verbose bool) error {
 	}
 
 	return outputAnalysis(analysis, suggestions, cfg)
+}
+
+func watchLogFile(filename string, cfg *config.Config, verbose bool, tailLines int, slowThreshold float64) error {
+	if verbose {
+		fmt.Printf("🔍 Starting real-time log monitoring: %s\n", filename)
+		fmt.Printf("Dialect: %s\n", cfg.Parser.Dialect)
+		fmt.Printf("Slow query threshold: %.2fs\n", slowThreshold)
+		fmt.Printf("Tailing last %d lines...\n\n", tailLines)
+	}
+
+	// Create context for graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Create watcher
+	watcher := monitor.NewLogWatcher(filename)
+	lines := make(chan string, 100) // Buffered channel for log lines
+
+	// Start watching (with tail)
+	var err error
+	if tailLines > 0 {
+		err = watcher.StartWithTail(ctx, lines, tailLines)
+	} else {
+		err = watcher.Start(ctx, lines)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to start watcher: %w", err)
+	}
+
+	// Create alert manager
+	alertMgr := monitor.NewAlertManager()
+
+	// Add alert rules
+	alertMgr.AddRule(&monitor.SlowQueryRule{Threshold: slowThreshold})
+	alertMgr.AddRule(&monitor.ParseErrorRule{})
+	alertMgr.AddRule(&monitor.OptimizationRule{MinSeverity: "medium"})
+	alertMgr.AddRule(&monitor.FullTableScanRule{})
+
+	// Add console alert handler
+	alertMgr.AddHandler(monitor.ConsoleAlertHandler)
+
+	// Create processor
+	processor := monitor.NewLogProcessor(cfg.Parser.Dialect)
+	processor.SetQueryHandler(func(pq *monitor.ProcessedQuery) {
+		// Check alerts first
+		alertMgr.Check(pq)
+
+		// Print query information
+		fmt.Printf("[%s] Duration: %.3fs | Database: %s | User: %s\n",
+			pq.Timestamp.Format("15:04:05"),
+			pq.Duration,
+			pq.Database,
+			pq.User)
+
+		if len(pq.Query) > 100 {
+			fmt.Printf("  Query: %s...\n", pq.Query[:97])
+		} else {
+			fmt.Printf("  Query: %s\n", pq.Query)
+		}
+
+		// Show analysis if available
+		if pq.Analysis != nil {
+			if len(pq.Analysis.Tables) > 0 {
+				tables := make([]string, len(pq.Analysis.Tables))
+				for i, t := range pq.Analysis.Tables {
+					tables[i] = t.Name
+				}
+				fmt.Printf("  Tables: %s\n", strings.Join(tables, ", "))
+			}
+
+			// Show optimizations if any
+			if len(pq.Analysis.EnhancedSuggestions) > 0 {
+				fmt.Printf("  ⚠️  %d optimization suggestions\n", len(pq.Analysis.EnhancedSuggestions))
+				for _, opt := range pq.Analysis.EnhancedSuggestions {
+					fmt.Printf("    - [%s] %s\n", opt.Severity, opt.Description)
+				}
+			}
+		}
+
+		fmt.Println()
+	})
+
+	// Start processor
+	go processor.Start(ctx, lines)
+
+	// Print statistics periodically
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	// Handle Ctrl+C
+	sigChan := make(chan os.Signal, 1)
+
+	fmt.Println("📊 Real-time monitoring started. Press Ctrl+C to stop.")
+	fmt.Println(strings.Repeat("=", 80))
+	fmt.Println()
+
+	// Main loop
+	for {
+		select {
+		case <-ticker.C:
+			// Print statistics
+			stats := processor.GetStatistics().GetSnapshot()
+			fmt.Println()
+			fmt.Println(strings.Repeat("=", 80))
+			fmt.Println(stats.String())
+
+			// Print alert counts
+			alertCounts := alertMgr.GetAlertCounts()
+			if len(alertCounts) > 0 {
+				fmt.Println("\nAlerts:")
+				for level, count := range alertCounts {
+					fmt.Printf("  %s: %d\n", level.String(), count)
+				}
+			}
+			fmt.Println(strings.Repeat("=", 80))
+			fmt.Println()
+
+		case <-sigChan:
+			fmt.Println("\n\nStopping monitoring...")
+			cancel()
+			watcher.Stop()
+
+			// Print final statistics
+			stats := processor.GetStatistics().GetSnapshot()
+			fmt.Println()
+			fmt.Println("Final Statistics:")
+			fmt.Println(stats.String())
+			return nil
+		}
+	}
 }
 
 func parseLogFile(filename string, cfg *config.Config, verbose bool) error {

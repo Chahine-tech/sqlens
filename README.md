@@ -17,11 +17,26 @@ A powerful multi-dialect SQL query analysis tool written in Go that provides com
 
 ## 📦 Installation
 
-### Prerequisites
+### Option 1: Using Nix (Recommended) 🎯
 
-- Go 1.21 or higher
+With [Nix flakes](https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-flake.html), you get a reproducible development environment:
 
-### Build from Source
+```bash
+# Try it without installing
+nix run github:Chahine-tech/sql-parser-go -- --help
+
+# Or enter development environment
+nix develop
+
+# Or install globally
+nix profile install github:Chahine-tech/sql-parser-go
+```
+
+See [NIX.md](NIX.md) for detailed Nix setup and usage.
+
+### Option 2: Build from Source
+
+**Prerequisites:** Go 1.21 or higher
 
 ```bash
 # Clone the repository

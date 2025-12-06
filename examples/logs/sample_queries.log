@@ -1,0 +1,13 @@
+2024-01-15T10:30:45.123Z  Query  SELECT * FROM users WHERE id = 1
+2024-01-15T10:30:46.234Z  Query  SELECT u.name, u.email, o.total FROM users u JOIN orders o ON u.id = o.user_id WHERE o.status = 'completed'
+2024-01-15T10:30:47.456Z  Query  INSERT INTO audit_log (user_id, action, timestamp) VALUES (123, 'login', NOW())
+2024-01-15T10:30:48.789Z  Query  UPDATE users SET last_login = NOW() WHERE id = 123
+2024-01-15T10:30:50.123Z  Query  SELECT COUNT(*) FROM orders WHERE created_at > '2024-01-01'
+2024-01-15T10:30:51.456Z  Query  DELETE FROM sessions WHERE expires_at < NOW()
+2024-01-15T10:30:52.789Z  Query  SELECT * FROM products
+2024-01-15T10:30:54.123Z  Query  UPDATE inventory SET quantity = quantity - 1 WHERE product_id = 456
+2024-01-15T10:30:55.456Z  Query  SELECT p.name, p.price, c.name as category FROM products p LEFT JOIN categories c ON p.category_id = c.id ORDER BY p.created_at DESC LIMIT 10
+2024-01-15T10:30:57.789Z  Query  CREATE INDEX idx_users_email ON users(email)
+2024-01-15T10:30:59.123Z  Query  WITH recent_orders AS (SELECT * FROM orders WHERE created_at > CURRENT_DATE - INTERVAL '30 days') SELECT COUNT(*) FROM recent_orders
+2024-01-15T10:31:01.456Z  Query  MERGE INTO inventory t USING order_items s ON t.product_id = s.product_id WHEN MATCHED THEN UPDATE SET quantity = t.quantity - s.quantity
+2024-01-15T10:31:03.789Z  Query  SELECT * FROM logs WHERE level = 'ERROR' AND timestamp > NOW() - INTERVAL '1 hour'
