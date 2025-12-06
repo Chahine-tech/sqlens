@@ -65,11 +65,9 @@
 
           src = ./.;
 
-          # This hash needs to be computed
-          # Run: nix flake lock --update-input nixpkgs
-          # Then: nix build
-          # Copy the hash from the error message
-          vendorHash = "sha256-u8ail0ExBVg1jdu1DW0J1HCFrtyh1C/rbN06qp1qyqY=";
+          # Vendor hash for Go dependencies
+          # Computed automatically by Nix
+          vendorHash = "sha256-g+yaVIx4jxpAQ/+WrGKxhVeliYx7nLQe/zsGpxV4Fn4=";
 
           # Build flags
           ldflags = [
