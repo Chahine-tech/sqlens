@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -128,10 +129,10 @@ SELECT * FROM inventory WHERE id = 5
 func TestLogProcessor(t *testing.T) {
 	processor := monitor.NewLogProcessor("mysql")
 
-	// Track processed queries
-	processedCount := 0
+	// Track processed queries (atomic to avoid race conditions)
+	var processedCount int64
 	processor.SetQueryHandler(func(pq *monitor.ProcessedQuery) {
-		processedCount++
+		atomic.AddInt64(&processedCount, 1)
 		if pq.Query == "" {
 			t.Error("Processed query should not be empty")
 		}
@@ -167,8 +168,9 @@ func TestLogProcessor(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 
 	// Should have processed the queries (some may fail to parse due to incomplete SQL)
-	if processedCount < 4 {
-		t.Errorf("Expected at least 4 processed queries, got %d", processedCount)
+	count := atomic.LoadInt64(&processedCount)
+	if count < 4 {
+		t.Errorf("Expected at least 4 processed queries, got %d", count)
 	}
 
 	// Check statistics - total lines should include all processed queries
@@ -361,11 +363,11 @@ func TestQueryExtraction(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Process the line
-			queryExtracted := false
+			// Process the line (use atomic int32 for thread-safe access)
+			var queryExtracted int32
 			processor.SetQueryHandler(func(pq *monitor.ProcessedQuery) {
 				if pq.Query != "" {
-					queryExtracted = true
+					atomic.StoreInt32(&queryExtracted, 1)
 				}
 			})
 
@@ -378,9 +380,10 @@ func TestQueryExtraction(t *testing.T) {
 			lines <- tc.logLine
 			time.Sleep(100 * time.Millisecond)
 
-			if queryExtracted != tc.expected {
+			extracted := atomic.LoadInt32(&queryExtracted) == 1
+			if extracted != tc.expected {
 				t.Errorf("Query extraction mismatch: expected %v, got %v for line: %s",
-					tc.expected, queryExtracted, tc.logLine)
+					tc.expected, extracted, tc.logLine)
 			}
 
 			cancel()
