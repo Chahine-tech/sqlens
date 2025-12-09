@@ -12,6 +12,7 @@ A powerful multi-dialect SQL query analysis tool written in Go that provides com
 - **⚡ Sub-Microsecond Parsing**: Parse queries in <1μs (SQL Server: 375ns!)
 - **🔍 Schema-Aware Validation**: Validate SQL against database schemas
 - **📊 Execution Plan Analysis**: Analyze EXPLAIN output and detect bottlenecks
+- **📈 Real-Time Log Monitoring**: Watch and analyze SQL logs as they're written
 - **💡 Smart Optimizations**: Dialect-specific optimization suggestions
 - **🚀 Production-Ready Performance**: Zero-allocation paths, object pooling, intelligent caching
 
@@ -81,6 +82,16 @@ make test
 ./bin/sqlparser -sql "SELECT [user_id] FROM [users]" -dialect sqlserver
 ```
 
+### Real-Time Log Monitoring
+
+```bash
+# Watch SQL log file and analyze queries in real-time
+./bin/sqlparser -monitor /var/log/mysql/slow-query.log -dialect mysql
+
+# With alert rules for slow queries
+./bin/sqlparser -monitor /var/log/postgresql/postgresql.log -dialect postgresql -verbose
+```
+
 See [docs/EXAMPLES.md](docs/EXAMPLES.md) for comprehensive usage examples.
 
 ## 📚 Supported SQL Features
@@ -132,6 +143,7 @@ Options:
   -query FILE          Analyze SQL query from file
   -sql STRING          Analyze SQL query from string
   -log FILE            Parse SQL Server log file
+  -monitor FILE        Monitor SQL log file in real-time (watches for new entries)
   -output FORMAT       Output format: json, table (default: json)
   -dialect DIALECT     SQL dialect: mysql, postgresql, sqlserver, sqlite, oracle (default: sqlserver)
   -verbose             Enable verbose output
@@ -186,7 +198,8 @@ sql-parser-go/
 │   ├── dialect/           # Dialect-specific support
 │   ├── schema/            # Schema definitions and validation
 │   ├── plan/              # Execution plan analysis
-│   └── logger/            # Log parsing
+│   ├── logger/            # Log parsing
+│   └── monitor/           # Real-time log monitoring
 ├── internal/
 │   ├── config/            # Configuration management
 │   └── performance/       # Performance monitoring
@@ -202,6 +215,7 @@ sql-parser-go/
 4. **Dialect** - Handles dialect-specific syntax and features
 5. **Schema** - Schema loading and validation (7.2μs load, 155-264ns validation)
 6. **Plan** - Execution plan analysis (46ns analysis, 117ns bottleneck detection)
+7. **Monitor** - Real-time log watching and processing with alert rules
 
 ## 🚀 Performance Highlights
 
@@ -289,13 +303,15 @@ make dev-log
 - [x] View definitions (CREATE VIEW, CREATE MATERIALIZED VIEW)
 - [x] Trigger parsing (CREATE TRIGGER, DROP TRIGGER)
 - [x] **Control flow statements** (IF, WHILE, FOR, LOOP, REPEAT, EXIT, CONTINUE)
+- [x] **Real-time log monitoring** (LogWatcher, LogProcessor, AlertManager)
 - [x] Performance benchmarking
 - [x] Dialect-specific optimizations
 
 ### 🚧 Planned Features
 
-- [ ] Real-time log monitoring
-- [ ] Integration with monitoring tools
+- [ ] Query rewriting (automatic SQL optimization)
+- [ ] Batch analysis (analyze multiple files at once)
+- [ ] Integration with monitoring tools (Prometheus, webhooks)
 
 ## 🤝 Contributing
 
