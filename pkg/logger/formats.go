@@ -2,7 +2,6 @@ package logger
 
 import "strings"
 
-
 // Supported log formats for SQL Server
 type LogFormat int
 

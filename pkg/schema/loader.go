@@ -30,10 +30,10 @@ type schemaData struct {
 }
 
 type tableData struct {
-	Name    string        `json:"name"           yaml:"name"`
-	Schema  string        `json:"schema,omitempty" yaml:"schema,omitempty"`
-	Columns []columnData  `json:"columns"        yaml:"columns"`
-	Indexes []indexData   `json:"indexes,omitempty" yaml:"indexes,omitempty"`
+	Name    string       `json:"name"           yaml:"name"`
+	Schema  string       `json:"schema,omitempty" yaml:"schema,omitempty"`
+	Columns []columnData `json:"columns"        yaml:"columns"`
+	Indexes []indexData  `json:"indexes,omitempty" yaml:"indexes,omitempty"`
 }
 
 type columnData struct {

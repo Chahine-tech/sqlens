@@ -26,13 +26,13 @@ type LogEntry struct {
 
 // Package-level compiled regexes — allocated once, reused for every log line.
 var (
-	reProfiler     = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+(.+)`)
-	reErrorLog     = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{2})\s+(\w+)\s+(.+)`)
-	rePerfCounter  = regexp.MustCompile(`Duration:\s*(\d+)\s*ms.*CPU:\s*(\d+)\s*ms.*Reads:\s*(\d+).*Writes:\s*(\d+)`)
-	reXETimestamp  = regexp.MustCompile(`timestamp="([^"]+)"`)
-	reXEDuration   = regexp.MustCompile(`duration="(\d+)"`)
-	reXEStatement  = regexp.MustCompile(`statement="([^"]+)"`)
-	reXEDatabase   = regexp.MustCompile(`database_name="([^"]+)"`)
+	reProfiler    = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+(.+)`)
+	reErrorLog    = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{2})\s+(\w+)\s+(.+)`)
+	rePerfCounter = regexp.MustCompile(`Duration:\s*(\d+)\s*ms.*CPU:\s*(\d+)\s*ms.*Reads:\s*(\d+).*Writes:\s*(\d+)`)
+	reXETimestamp = regexp.MustCompile(`timestamp="([^"]+)"`)
+	reXEDuration  = regexp.MustCompile(`duration="(\d+)"`)
+	reXEStatement = regexp.MustCompile(`statement="([^"]+)"`)
+	reXEDatabase  = regexp.MustCompile(`database_name="([^"]+)"`)
 )
 
 type SQLServerLogParser struct{}
