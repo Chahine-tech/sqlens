@@ -2,7 +2,10 @@ package plan
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
+	"strconv"
+	"strings"
 )
 
 // PlanAnalyzer analyzes execution plans and provides optimization suggestions
@@ -411,22 +414,239 @@ func parsePostgreSQLNode(data map[string]interface{}) *PlanNode {
 	return node
 }
 
-// parseSQLServerXMLPlan parses SQL Server XML execution plan format
-func parseSQLServerXMLPlan(xmlData []byte) (*ExecutionPlan, error) {
-	// TODO: Implement SQL Server XML plan parsing
-	// SQL Server uses XML format which requires XML parsing
-	return &ExecutionPlan{
-		Dialect:  "sqlserver",
-		Warnings: []string{"SQL Server XML plan parsing not yet implemented"},
-	}, nil
+// sqlServerXMLPlan is the top-level XML structure for SQL Server execution plans.
+// SQL Server EXPLAIN FOR XML produces a ShowPlanXML document.
+type sqlServerXMLPlan struct {
+	XMLName    xml.Name              `xml:"ShowPlanXML"`
+	Statements []sqlServerXMLStmt    `xml:"BatchSequence>Batch>Statements>StmtSimple"`
 }
 
-// parseSQLiteTextPlan parses SQLite text execution plan format
+type sqlServerXMLStmt struct {
+	StatementCost float64           `xml:"StatementSubTreeCost,attr"`
+	StatementRows float64           `xml:"StatementEstRows,attr"`
+	QueryPlan     sqlServerQueryPlan `xml:"QueryPlan"`
+}
+
+type sqlServerQueryPlan struct {
+	RelOp sqlServerRelOp `xml:"RelOp"`
+}
+
+type sqlServerRelOp struct {
+	Operation      string             `xml:"PhysicalOp,attr"`
+	LogicalOp      string             `xml:"LogicalOp,attr"`
+	EstimatedRows  float64            `xml:"EstimateRows,attr"`
+	EstimatedCost  float64            `xml:"EstimatedTotalSubtreeCost,attr"`
+	Children       []sqlServerRelOp   `xml:"RelOp"`
+	IndexScan      *sqlServerIndex    `xml:"IndexScan"`
+	NestedLoops    *sqlServerNested   `xml:"NestedLoops"`
+}
+
+type sqlServerIndex struct {
+	Object []sqlServerObject `xml:"Object"`
+}
+
+type sqlServerObject struct {
+	Table  string `xml:"Table,attr"`
+	Index  string `xml:"Index,attr"`
+	Schema string `xml:"Schema,attr"`
+}
+
+type sqlServerNested struct {
+	Predicate *sqlServerPredicate `xml:"Predicate"`
+}
+
+type sqlServerPredicate struct {
+	ScalarOperator string `xml:",innerxml"`
+}
+
+// parseSQLServerXMLPlan parses SQL Server XML execution plan format.
+// SQL Server outputs ShowPlanXML when using SET SHOWPLAN_XML ON or EXPLAIN FOR XML.
+func parseSQLServerXMLPlan(xmlData []byte) (*ExecutionPlan, error) {
+	var root sqlServerXMLPlan
+	if err := xml.Unmarshal(xmlData, &root); err != nil {
+		return nil, fmt.Errorf("failed to parse SQL Server XML plan: %w", err)
+	}
+
+	plan := &ExecutionPlan{Dialect: "sqlserver"}
+
+	if len(root.Statements) == 0 {
+		return plan, nil
+	}
+
+	stmt := root.Statements[0]
+	plan.TotalCost = stmt.StatementCost
+	plan.EstimatedRows = int64(stmt.StatementRows)
+	plan.RootNode = parseSQLServerRelOp(&stmt.QueryPlan.RelOp)
+
+	return plan, nil
+}
+
+func parseSQLServerRelOp(op *sqlServerRelOp) *PlanNode {
+	if op == nil {
+		return nil
+	}
+
+	node := &PlanNode{
+		Operation: op.Operation,
+		Extra:     make(map[string]any),
+	}
+
+	if op.LogicalOp != "" {
+		node.Extra["logical_op"] = op.LogicalOp
+	}
+
+	node.Cost = &Cost{TotalCost: op.EstimatedCost}
+	node.Rows = &RowEstimate{Estimated: int64(op.EstimatedRows)}
+
+	// Map SQL Server operation names to NodeType
+	switch strings.ToUpper(op.Operation) {
+	case "CLUSTERED INDEX SCAN":
+		node.NodeType = NodeTypeClusteredIndexScan
+	case "NONCLUSTERED INDEX SCAN", "INDEX SCAN":
+		node.NodeType = NodeTypeNonClusteredIndexScan
+	case "TABLE SCAN":
+		node.NodeType = NodeTypeTableScan
+	case "CLUSTERED INDEX SEEK", "INDEX SEEK":
+		node.NodeType = NodeTypeIndexScan
+	case "NESTED LOOPS":
+		node.NodeType = NodeTypeNestedLoop
+	case "HASH MATCH":
+		node.NodeType = NodeTypeHashJoin
+	case "MERGE JOIN":
+		node.NodeType = NodeTypeMergeJoin
+	case "SORT":
+		node.NodeType = NodeTypeSort
+	case "STREAM AGGREGATE", "HASH AGGREGATE":
+		node.NodeType = NodeTypeAggregate
+	case "FILTER":
+		node.NodeType = NodeTypeFilter
+	case "TOP":
+		node.NodeType = NodeTypeLimit
+	}
+
+	// Extract table name from IndexScan object
+	if op.IndexScan != nil && len(op.IndexScan.Object) > 0 {
+		obj := op.IndexScan.Object[0]
+		node.Table = strings.Trim(obj.Table, "[]")
+		node.Index = strings.Trim(obj.Index, "[]")
+	}
+
+	// Recursively parse children
+	for i := range op.Children {
+		child := parseSQLServerRelOp(&op.Children[i])
+		if child != nil {
+			node.Children = append(node.Children, child)
+		}
+	}
+
+	return node
+}
+
+// parseSQLiteTextPlan parses SQLite EXPLAIN QUERY PLAN text output.
+// Format: "id|parent|notused|detail" per line (pipe-separated).
 func parseSQLiteTextPlan(textData []byte) (*ExecutionPlan, error) {
-	// TODO: Implement SQLite text plan parsing
-	// SQLite uses a simple text format
-	return &ExecutionPlan{
-		Dialect:  "sqlite",
-		Warnings: []string{"SQLite text plan parsing not yet implemented"},
-	}, nil
+	plan := &ExecutionPlan{Dialect: "sqlite"}
+	lines := strings.Split(strings.TrimSpace(string(textData)), "\n")
+
+	type row struct {
+		id     int
+		parent int
+		detail string
+	}
+
+	var rows []row
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "|", 4)
+		if len(parts) < 4 {
+			// Try space-separated (older SQLite)
+			parts = strings.Fields(line)
+			if len(parts) < 4 {
+				continue
+			}
+		}
+		id, err1 := strconv.Atoi(strings.TrimSpace(parts[0]))
+		parent, err2 := strconv.Atoi(strings.TrimSpace(parts[1]))
+		if err1 != nil || err2 != nil {
+			continue
+		}
+		rows = append(rows, row{id: id, parent: parent, detail: strings.TrimSpace(parts[3])})
+	}
+
+	if len(rows) == 0 {
+		return plan, nil
+	}
+
+	// Build tree: map id -> node
+	nodes := make(map[int]*PlanNode, len(rows))
+	for _, r := range rows {
+		node := parseSQLiteDetail(r.detail)
+		nodes[r.id] = node
+	}
+
+	// Link children to parents; root has parent == 0
+	var root *PlanNode
+	for _, r := range rows {
+		node := nodes[r.id]
+		if r.parent == 0 {
+			root = node
+		} else if parent, ok := nodes[r.parent]; ok {
+			parent.Children = append(parent.Children, node)
+		}
+	}
+
+	plan.RootNode = root
+	return plan, nil
+}
+
+func parseSQLiteDetail(detail string) *PlanNode {
+	node := &PlanNode{
+		Operation: detail,
+		Extra:     make(map[string]any),
+	}
+
+	upper := strings.ToUpper(detail)
+	switch {
+	case strings.Contains(upper, "SCAN TABLE"):
+		node.NodeType = NodeTypeFullTableScan
+		node.Table = extractSQLiteTable(detail, "SCAN TABLE")
+	case strings.Contains(upper, "SEARCH TABLE"):
+		node.NodeType = NodeTypeIndexScan
+		node.Table = extractSQLiteTable(detail, "SEARCH TABLE")
+	case strings.Contains(upper, "SCAN SUBQUERY"):
+		node.NodeType = NodeTypeSubquery
+	case strings.Contains(upper, "USE TEMP B-TREE FOR ORDER BY"):
+		node.NodeType = NodeTypeSort
+	case strings.Contains(upper, "USE TEMP B-TREE"):
+		node.NodeType = NodeTypeAggregate
+	case strings.Contains(upper, "COMPOUND SUBQUERIES"):
+		node.NodeType = NodeTypeUnion
+	}
+
+	// Extract USING INDEX
+	if idx := strings.Index(upper, "USING INDEX "); idx >= 0 {
+		rest := detail[idx+len("USING INDEX "):]
+		fields := strings.Fields(rest)
+		if len(fields) > 0 {
+			node.Index = fields[0]
+		}
+	}
+
+	return node
+}
+
+func extractSQLiteTable(detail, keyword string) string {
+	idx := strings.Index(strings.ToUpper(detail), strings.ToUpper(keyword))
+	if idx < 0 {
+		return ""
+	}
+	rest := strings.TrimSpace(detail[idx+len(keyword):])
+	fields := strings.Fields(rest)
+	if len(fields) > 0 {
+		return fields[0]
+	}
+	return ""
 }
