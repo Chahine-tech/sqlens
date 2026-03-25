@@ -14,6 +14,7 @@ const (
 	defaultJoinCapacity      = 4
 	defaultConditionCapacity = 8
 	defaultCacheCapacity     = 64
+	maxCacheSize             = 512
 )
 
 type Analyzer struct {
@@ -99,6 +100,13 @@ func (a *Analyzer) AnalyzeWithCache(stmt parser.Statement, cacheKey string) Quer
 
 	if cacheKey != "" {
 		a.mu.Lock()
+		if len(a.cache) >= maxCacheSize {
+			// Evict one arbitrary entry to cap memory usage.
+			for k := range a.cache {
+				delete(a.cache, k)
+				break
+			}
+		}
 		a.cache[cacheKey] = analysis
 		a.mu.Unlock()
 	}
@@ -126,10 +134,14 @@ func (a *Analyzer) analyzeSelectStatement(stmt *parser.SelectStatement) {
 			Usage:  "SELECT",
 		})
 
+		condition := ""
+		if join.Condition != nil {
+			condition = join.Condition.String()
+		}
 		a.analysis.Joins = append(a.analysis.Joins, JoinInfo{
 			Type:       join.JoinType,
 			RightTable: join.Table.Name,
-			Condition:  join.Condition.String(),
+			Condition:  condition,
 		})
 
 		a.analyzeExpression(join.Condition, "JOIN")
@@ -312,29 +324,33 @@ func (a *Analyzer) SuggestOptimizations(stmt *parser.SelectStatement) []Optimiza
 	return suggestions
 }
 
-// GetEnhancedOptimizations returns comprehensive optimization suggestions using the new engine
+// GetEnhancedOptimizations returns comprehensive optimization suggestions using the new engine.
 func (a *Analyzer) GetEnhancedOptimizations(stmt parser.Statement) []EnhancedOptimizationSuggestion {
-	if a.optimizationEngine == nil {
-		// Fallback to basic suggestions if no optimization engine is available
-		basicSuggestions := a.SuggestOptimizations(stmt.(*parser.SelectStatement))
-		enhanced := make([]EnhancedOptimizationSuggestion, len(basicSuggestions))
-		for i, basic := range basicSuggestions {
-			enhanced[i] = EnhancedOptimizationSuggestion{
-				Type:        basic.Type,
-				Description: basic.Description,
-				Severity:    basic.Severity,
-				Category:    "GENERAL",
-				Rule:        basic.Type,
-				Line:        basic.Line,
-				Suggestion:  "Review query for optimization opportunities",
-				Impact:      "MEDIUM",
-				AutoFixable: false,
-			}
-		}
-		return enhanced
+	if a.optimizationEngine != nil {
+		return a.optimizationEngine.AnalyzeOptimizations(stmt)
 	}
 
-	return a.optimizationEngine.AnalyzeOptimizations(stmt)
+	// Fallback: only SELECT statements support basic suggestions.
+	sel, ok := stmt.(*parser.SelectStatement)
+	if !ok {
+		return nil
+	}
+	basicSuggestions := a.SuggestOptimizations(sel)
+	enhanced := make([]EnhancedOptimizationSuggestion, len(basicSuggestions))
+	for i, basic := range basicSuggestions {
+		enhanced[i] = EnhancedOptimizationSuggestion{
+			Type:        basic.Type,
+			Description: basic.Description,
+			Severity:    basic.Severity,
+			Category:    "GENERAL",
+			Rule:        basic.Type,
+			Line:        basic.Line,
+			Suggestion:  "Review query for optimization opportunities",
+			Impact:      "MEDIUM",
+			AutoFixable: false,
+		}
+	}
+	return enhanced
 }
 
 // SetOptimizationEngine allows setting a custom optimization engine

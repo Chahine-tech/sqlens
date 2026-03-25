@@ -169,7 +169,7 @@ func (pa *PlanAnalyzer) calculatePerformanceScore(plan *ExecutionPlan, analysis 
 	}
 
 	// Deduct points for full table scans
-	if plan.Statistics != nil {
+	if plan.Statistics != nil && plan.Statistics.TotalNodes > 0 {
 		fullTableScanRatio := float64(plan.Statistics.FullTableScans) / float64(plan.Statistics.TotalNodes)
 		score -= fullTableScanRatio * 20.0
 	}

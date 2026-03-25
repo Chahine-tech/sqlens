@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -23,29 +24,21 @@ type LogEntry struct {
 	SPID      int       `json:"spid"`
 }
 
-type SQLServerLogParser struct {
-	patterns map[string]*regexp.Regexp
-}
+// Package-level compiled regexes — allocated once, reused for every log line.
+var (
+	reProfiler     = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+(.+)`)
+	reErrorLog     = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{2})\s+(\w+)\s+(.+)`)
+	rePerfCounter  = regexp.MustCompile(`Duration:\s*(\d+)\s*ms.*CPU:\s*(\d+)\s*ms.*Reads:\s*(\d+).*Writes:\s*(\d+)`)
+	reXETimestamp  = regexp.MustCompile(`timestamp="([^"]+)"`)
+	reXEDuration   = regexp.MustCompile(`duration="(\d+)"`)
+	reXEStatement  = regexp.MustCompile(`statement="([^"]+)"`)
+	reXEDatabase   = regexp.MustCompile(`database_name="([^"]+)"`)
+)
+
+type SQLServerLogParser struct{}
 
 func NewSQLServerLogParser() *SQLServerLogParser {
-	return &SQLServerLogParser{
-		patterns: map[string]*regexp.Regexp{
-			// SQL Server Profiler format
-			"profiler": regexp.MustCompile(`^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+(.+)`),
-
-			// Extended Events format
-			"extended_events": regexp.MustCompile(`<event name="sql_statement_completed".*?timestamp="([^"]+)".*?>`),
-
-			// Query Store format (JSON)
-			"query_store": regexp.MustCompile(`"query_sql_text":\s*"([^"]+)"`),
-
-			// General SQL Server error log format
-			"error_log": regexp.MustCompile(`^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{2})\s+(\w+)\s+(.+)`),
-
-			// Performance counter format
-			"perf_counter": regexp.MustCompile(`Duration:\s*(\d+)\s*ms.*CPU:\s*(\d+)\s*ms.*Reads:\s*(\d+).*Writes:\s*(\d+)`),
-		},
-	}
+	return &SQLServerLogParser{}
 }
 
 func (p *SQLServerLogParser) ParseLog(reader io.Reader) ([]LogEntry, error) {
@@ -81,7 +74,7 @@ func (p *SQLServerLogParser) ParseLog(reader io.Reader) ([]LogEntry, error) {
 
 func (p *SQLServerLogParser) parseProfilerLine(line string) *LogEntry {
 	// Example: 2024-01-01 10:30:45.123 SQL:BatchCompleted SELECT * FROM Users
-	matches := p.patterns["profiler"].FindStringSubmatch(line)
+	matches := reProfiler.FindStringSubmatch(line)
 	if len(matches) < 3 {
 		return nil
 	}
@@ -98,7 +91,7 @@ func (p *SQLServerLogParser) parseProfilerLine(line string) *LogEntry {
 	}
 
 	// Extract performance metrics if present
-	if perfMatch := p.patterns["perf_counter"].FindStringSubmatch(content); len(perfMatch) >= 5 {
+	if perfMatch := rePerfCounter.FindStringSubmatch(content); len(perfMatch) >= 5 {
 		if duration, err := strconv.ParseInt(perfMatch[1], 10, 64); err == nil {
 			entry.Duration = duration
 		}
@@ -135,27 +128,23 @@ func (p *SQLServerLogParser) parseExtendedEventsLine(line string) *LogEntry {
 
 	entry := &LogEntry{}
 
-	// Extract timestamp
-	if matches := regexp.MustCompile(`timestamp="([^"]+)"`).FindStringSubmatch(line); len(matches) >= 2 {
+	if matches := reXETimestamp.FindStringSubmatch(line); len(matches) >= 2 {
 		if timestamp, err := time.Parse(time.RFC3339, matches[1]); err == nil {
 			entry.Timestamp = timestamp
 		}
 	}
 
-	// Extract duration
-	if matches := regexp.MustCompile(`duration="(\d+)"`).FindStringSubmatch(line); len(matches) >= 2 {
+	if matches := reXEDuration.FindStringSubmatch(line); len(matches) >= 2 {
 		if duration, err := strconv.ParseInt(matches[1], 10, 64); err == nil {
-			entry.Duration = duration / 1000 // Convert microseconds to milliseconds
+			entry.Duration = duration / 1000 // microseconds → milliseconds
 		}
 	}
 
-	// Extract SQL text
-	if matches := regexp.MustCompile(`statement="([^"]+)"`).FindStringSubmatch(line); len(matches) >= 2 {
+	if matches := reXEStatement.FindStringSubmatch(line); len(matches) >= 2 {
 		entry.Query = matches[1]
 	}
 
-	// Extract database
-	if matches := regexp.MustCompile(`database_name="([^"]+)"`).FindStringSubmatch(line); len(matches) >= 2 {
+	if matches := reXEDatabase.FindStringSubmatch(line); len(matches) >= 2 {
 		entry.Database = matches[1]
 	}
 
@@ -196,7 +185,7 @@ func (p *SQLServerLogParser) parseQueryStoreLine(line string) *LogEntry {
 
 func (p *SQLServerLogParser) parseErrorLogLine(line string) *LogEntry {
 	// Parse general SQL Server error log format
-	matches := p.patterns["error_log"].FindStringSubmatch(line)
+	matches := reErrorLog.FindStringSubmatch(line)
 	if len(matches) < 4 {
 		return nil
 	}
@@ -240,10 +229,14 @@ func (p *SQLServerLogParser) looksLikeSQL(line string) bool {
 	return false
 }
 
-// ParseLogFile is a convenience function to parse a log file by filename
+// ParseLogFile parses a log file by path.
 func (p *SQLServerLogParser) ParseLogFile(filename string) ([]LogEntry, error) {
-	// This would need to be implemented with file I/O
-	return nil, fmt.Errorf("ParseLogFile not implemented - use ParseLog with a file reader")
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open log file: %w", err)
+	}
+	defer f.Close()
+	return p.ParseLog(f)
 }
 
 // FilterEntries filters log entries based on criteria

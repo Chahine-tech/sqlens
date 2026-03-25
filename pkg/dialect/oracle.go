@@ -57,15 +57,16 @@ func (d *OracleDialect) GetDataTypes() []string {
 	return append(CommonDataTypes, oracle...)
 }
 
-func (d *OracleDialect) IsReservedWord(word string) bool {
-	keywords := d.GetKeywords()
-	upper := strings.ToUpper(word)
-	for _, keyword := range keywords {
-		if keyword == upper {
-			return true
-		}
+var oracleReserved = func() map[string]bool {
+	m := make(map[string]bool)
+	for _, k := range (&OracleDialect{}).GetKeywords() {
+		m[k] = true
 	}
-	return false
+	return m
+}()
+
+func (d *OracleDialect) IsReservedWord(word string) bool {
+	return oracleReserved[strings.ToUpper(word)]
 }
 
 func (d *OracleDialect) GetLimitSyntax() LimitSyntax {

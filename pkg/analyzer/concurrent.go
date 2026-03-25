@@ -41,19 +41,24 @@ type AnalysisResult struct {
 	Error    error
 }
 
-// AnalyzeConcurrently analyzes multiple queries concurrently
+// AnalyzeConcurrently analyzes multiple queries concurrently.
 func (ca *ConcurrentAnalyzer) AnalyzeConcurrently(ctx context.Context, jobs []AnalysisJob) []AnalysisResult {
 	jobChan := make(chan AnalysisJob, len(jobs))
 	resultChan := make(chan AnalysisResult, len(jobs))
 
-	// Start workers
 	var wg sync.WaitGroup
 	for i := 0; i < ca.workerCount; i++ {
 		wg.Add(1)
 		go ca.worker(ctx, &wg, jobChan, resultChan)
 	}
 
-	// Send jobs
+	// Close resultChan only after all workers are done.
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+
+	// Send jobs; close jobChan when done so workers can exit.
 	go func() {
 		defer close(jobChan)
 		for _, job := range jobs {
@@ -65,24 +70,20 @@ func (ca *ConcurrentAnalyzer) AnalyzeConcurrently(ctx context.Context, jobs []An
 		}
 	}()
 
-	// Collect results
+	// Collect results until the channel is closed or context is cancelled.
 	results := make([]AnalysisResult, 0, len(jobs))
-	for i := 0; i < len(jobs); i++ {
+	for {
 		select {
-		case result := <-resultChan:
+		case result, ok := <-resultChan:
+			if !ok {
+				return results
+			}
 			results = append(results, result)
 		case <-ctx.Done():
-			results = append(results, AnalysisResult{
-				Error: ctx.Err(),
-			})
+			results = append(results, AnalysisResult{Error: ctx.Err()})
+			return results
 		}
 	}
-
-	// Wait for workers to finish
-	wg.Wait()
-	close(resultChan)
-
-	return results
 }
 
 // worker processes analysis jobs

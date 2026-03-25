@@ -52,15 +52,16 @@ func (d *SQLServerDialect) GetDataTypes() []string {
 	return append(CommonDataTypes, sqlserver...)
 }
 
-func (d *SQLServerDialect) IsReservedWord(word string) bool {
-	keywords := d.GetKeywords()
-	upper := strings.ToUpper(word)
-	for _, keyword := range keywords {
-		if keyword == upper {
-			return true
-		}
+var sqlserverReserved = func() map[string]bool {
+	m := make(map[string]bool)
+	for _, k := range (&SQLServerDialect{}).GetKeywords() {
+		m[k] = true
 	}
-	return false
+	return m
+}()
+
+func (d *SQLServerDialect) IsReservedWord(word string) bool {
+	return sqlserverReserved[strings.ToUpper(word)]
 }
 
 func (d *SQLServerDialect) GetLimitSyntax() LimitSyntax {

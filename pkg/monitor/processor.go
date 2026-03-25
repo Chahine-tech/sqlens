@@ -16,6 +16,7 @@ import (
 type LogProcessor struct {
 	dialectName  string
 	dialect      dialect.Dialect
+	analyzer     *analyzer.Analyzer
 	queryHandler func(*ProcessedQuery)
 	stats        *Statistics
 	mu           sync.RWMutex
@@ -41,9 +42,11 @@ type ProcessedQuery struct {
 
 // NewLogProcessor creates a new log processor
 func NewLogProcessor(dialectName string) *LogProcessor {
+	d := dialect.GetDialect(dialectName)
 	return &LogProcessor{
 		dialectName: dialectName,
-		dialect:     dialect.GetDialect(dialectName),
+		dialect:     d,
+		analyzer:    analyzer.NewWithDialect(d),
 		stats:       NewStatistics(),
 	}
 }
@@ -111,9 +114,8 @@ func (p *LogProcessor) processLine(line string) {
 	}
 
 	// Analyze the query if parsing succeeded
-	if stmt != nil && err == nil {
-		a := analyzer.NewWithDialect(p.dialect)
-		analysis := a.Analyze(stmt)
+	if stmt != nil {
+		analysis := p.analyzer.Analyze(stmt)
 		pq.Analysis = &analysis
 	}
 

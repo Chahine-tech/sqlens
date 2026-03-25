@@ -75,6 +75,5 @@ func (pm *PerformanceMonitor) GetMetrics() map[string]interface{} {
 // ForceGC forces garbage collection and returns memory stats
 func ForceGC() MemoryStats {
 	runtime.GC()
-	runtime.GC() // Double GC to ensure cleanup
 	return GetMemoryStats()
 }

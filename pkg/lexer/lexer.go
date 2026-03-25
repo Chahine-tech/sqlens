@@ -48,20 +48,11 @@ func (l *Lexer) readChar() {
 	}
 }
 
-// lookupIdent checks if an identifier is a keyword using the dialect
+// lookupIdent returns the token type for an identifier, checking common SQL keywords first.
 func (l *Lexer) lookupIdent(ident string) TokenType {
-	// First check common SQL keywords
 	if tok, ok := keywords[ident]; ok {
 		return tok
 	}
-
-	// If not found in common keywords, check if it's a dialect-specific reserved word
-	if l.dialect.IsReservedWord(ident) {
-		// For dialect-specific keywords, we'll treat them as identifiers for now
-		// but could extend this to have dialect-specific token types
-		return IDENT
-	}
-
 	return IDENT
 }
 
@@ -150,10 +141,10 @@ func (l *Lexer) NextToken() Token {
 		// Double quotes can be string literals or identifiers depending on dialect
 		if l.dialect.Name() == "PostgreSQL" || l.dialect.Name() == "SQLite" || l.dialect.Name() == "Oracle" {
 			tok.Type = IDENT
-			tok.Literal = l.readDoubleQuotedIdentifier()
+			tok.Literal = l.readDoubleQuoted()
 		} else {
 			tok.Type = STRING
-			tok.Literal = l.readDoubleQuotedString()
+			tok.Literal = l.readDoubleQuoted()
 		}
 		tok.Position = l.position
 		tok.Line = l.line
@@ -289,18 +280,7 @@ func (l *Lexer) readString() string {
 	return result
 }
 
-func (l *Lexer) readDoubleQuotedString() string {
-	position := l.position + 1
-	for {
-		l.readChar()
-		if l.ch == '"' || l.ch == 0 {
-			break
-		}
-	}
-	return l.input[position:l.position]
-}
-
-func (l *Lexer) readDoubleQuotedIdentifier() string {
+func (l *Lexer) readDoubleQuoted() string {
 	position := l.position + 1
 	for {
 		l.readChar()

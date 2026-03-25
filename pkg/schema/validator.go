@@ -33,7 +33,7 @@ func NewValidator(schema *Schema) *Validator {
 
 // ValidateStatement validates a SQL statement against the schema
 func (v *Validator) ValidateStatement(stmt parser.Statement) []*ValidationError {
-	errors := make([]*ValidationError, 0)
+	var errors []*ValidationError
 
 	// Validate that schema is not nil
 	if v.schema == nil {
@@ -62,7 +62,7 @@ func (v *Validator) ValidateStatement(stmt parser.Statement) []*ValidationError 
 
 // validateSelectStatement validates a SELECT statement
 func (v *Validator) validateSelectStatement(stmt *parser.SelectStatement) []*ValidationError {
-	errors := make([]*ValidationError, 0)
+	var errors []*ValidationError
 
 	// Validate FROM clause
 	if stmt.From != nil {
@@ -113,7 +113,7 @@ func (v *Validator) validateSelectStatement(stmt *parser.SelectStatement) []*Val
 
 // validateInsertStatement validates an INSERT statement
 func (v *Validator) validateInsertStatement(stmt *parser.InsertStatement) []*ValidationError {
-	errors := make([]*ValidationError, 0)
+	var errors []*ValidationError
 
 	// Validate table
 	if !v.validateTableReference(&stmt.Table) {
@@ -144,7 +144,7 @@ func (v *Validator) validateInsertStatement(stmt *parser.InsertStatement) []*Val
 
 // validateUpdateStatement validates an UPDATE statement
 func (v *Validator) validateUpdateStatement(stmt *parser.UpdateStatement) []*ValidationError {
-	errors := make([]*ValidationError, 0)
+	var errors []*ValidationError
 
 	// Validate table
 	if !v.validateTableReference(&stmt.Table) {
@@ -180,7 +180,7 @@ func (v *Validator) validateUpdateStatement(stmt *parser.UpdateStatement) []*Val
 
 // validateDeleteStatement validates a DELETE statement
 func (v *Validator) validateDeleteStatement(stmt *parser.DeleteStatement) []*ValidationError {
-	errors := make([]*ValidationError, 0)
+	var errors []*ValidationError
 
 	// Validate table
 	if !v.validateTableReference(&stmt.From) {
@@ -202,7 +202,7 @@ func (v *Validator) validateDeleteStatement(stmt *parser.DeleteStatement) []*Val
 
 // validateWithStatement validates a WITH (CTE) statement
 func (v *Validator) validateWithStatement(stmt *parser.WithStatement) []*ValidationError {
-	errors := make([]*ValidationError, 0)
+	var errors []*ValidationError
 
 	// Validate main query
 	if selectStmt, ok := stmt.Query.(*parser.SelectStatement); ok {
@@ -230,7 +230,7 @@ func (v *Validator) validateTableReference(tableRef *parser.TableReference) bool
 
 // validateExpression validates an expression against the schema
 func (v *Validator) validateExpression(expr parser.Expression, stmt *parser.SelectStatement) []*ValidationError {
-	errors := make([]*ValidationError, 0)
+	var errors []*ValidationError
 
 	switch e := expr.(type) {
 	case *parser.ColumnReference:
@@ -297,7 +297,7 @@ func (v *Validator) validateExpression(expr parser.Expression, stmt *parser.Sele
 
 // validateExpressionForTable validates an expression for a specific table
 func (v *Validator) validateExpressionForTable(expr parser.Expression, tableRef *parser.TableReference) []*ValidationError {
-	errors := make([]*ValidationError, 0)
+	var errors []*ValidationError
 
 	switch e := expr.(type) {
 	case *parser.ColumnReference:

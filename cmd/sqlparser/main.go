@@ -6,7 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Chahine-tech/sql-parser-go/internal/config"
@@ -287,6 +289,7 @@ func watchLogFile(filename string, cfg *config.Config, verbose bool, tailLines i
 
 	// Handle Ctrl+C
 	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	fmt.Println("📊 Real-time monitoring started. Press Ctrl+C to stop.")
 	fmt.Println(strings.Repeat("=", 80))

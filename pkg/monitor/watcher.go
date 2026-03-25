@@ -122,21 +122,13 @@ func (w *LogWatcher) checkForNewLines(lines chan<- string) error {
 			line = line[:len(line)-1]
 		}
 
-		select {
-		case lines <- line:
-			// Line sent successfully
-		default:
-			// Channel full, skip this line (shouldn't happen with unbuffered channel)
-		}
+		lines <- line
 	}
 }
 
-// Stop stops watching the log file
-func (w *LogWatcher) Stop() {
-	if w.file != nil {
-		w.file.Close()
-	}
-}
+// Stop is a no-op: the watcher closes the file when its context is cancelled.
+// Cancel the context passed to Start or StartWithTail to stop watching.
+func (w *LogWatcher) Stop() {}
 
 // TailMode starts watching from the last N lines instead of end of file
 func (w *LogWatcher) StartWithTail(ctx context.Context, lines chan<- string, tailLines int) error {

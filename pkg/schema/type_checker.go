@@ -22,7 +22,7 @@ func NewTypeChecker(schema *Schema) *TypeChecker {
 
 // CheckStatement performs type checking on a statement
 func (tc *TypeChecker) CheckStatement(stmt parser.Statement) []*ValidationError {
-	errors := make([]*ValidationError, 0)
+	var errors []*ValidationError
 
 	switch s := stmt.(type) {
 	case *parser.SelectStatement:
@@ -38,7 +38,7 @@ func (tc *TypeChecker) CheckStatement(stmt parser.Statement) []*ValidationError 
 
 // checkSelectStatement checks types in a SELECT statement
 func (tc *TypeChecker) checkSelectStatement(stmt *parser.SelectStatement) []*ValidationError {
-	errors := make([]*ValidationError, 0)
+	var errors []*ValidationError
 
 	// Check WHERE clause types
 	if stmt.Where != nil {
@@ -62,7 +62,7 @@ func (tc *TypeChecker) checkSelectStatement(stmt *parser.SelectStatement) []*Val
 
 // checkInsertStatement checks types in an INSERT statement
 func (tc *TypeChecker) checkInsertStatement(stmt *parser.InsertStatement) []*ValidationError {
-	errors := make([]*ValidationError, 0)
+	var errors []*ValidationError
 
 	table, ok := tc.schema.GetTable(stmt.Table.Name)
 	if !ok {
@@ -106,7 +106,7 @@ func (tc *TypeChecker) checkInsertStatement(stmt *parser.InsertStatement) []*Val
 
 // checkUpdateStatement checks types in an UPDATE statement
 func (tc *TypeChecker) checkUpdateStatement(stmt *parser.UpdateStatement) []*ValidationError {
-	errors := make([]*ValidationError, 0)
+	var errors []*ValidationError
 
 	table, ok := tc.schema.GetTable(stmt.Table.Name)
 	if !ok {
@@ -146,7 +146,7 @@ func (tc *TypeChecker) checkUpdateStatement(stmt *parser.UpdateStatement) []*Val
 
 // checkBooleanExpression checks if an expression is boolean
 func (tc *TypeChecker) checkBooleanExpression(expr parser.Expression, stmt *parser.SelectStatement) []*ValidationError {
-	errors := make([]*ValidationError, 0)
+	var errors []*ValidationError
 
 	switch e := expr.(type) {
 	case *parser.BinaryExpression:

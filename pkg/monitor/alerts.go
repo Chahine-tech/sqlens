@@ -246,7 +246,7 @@ func (r *FullTableScanRule) Check(pq *ProcessedQuery) *Alert {
 	}
 
 	// Check for missing WHERE clause on UPDATE/DELETE
-	if _, ok := pq.Statement.(*parser.UpdateStatement); ok {
+	if updateStmt, ok := pq.Statement.(*parser.UpdateStatement); ok && updateStmt.Where == nil {
 		return &Alert{
 			Level:     AlertError,
 			Type:      "UNSAFE_UPDATE",
@@ -256,7 +256,7 @@ func (r *FullTableScanRule) Check(pq *ProcessedQuery) *Alert {
 		}
 	}
 
-	if _, ok := pq.Statement.(*parser.DeleteStatement); ok {
+	if deleteStmt, ok := pq.Statement.(*parser.DeleteStatement); ok && deleteStmt.Where == nil {
 		return &Alert{
 			Level:     AlertError,
 			Type:      "UNSAFE_DELETE",

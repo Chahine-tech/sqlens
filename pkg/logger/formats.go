@@ -2,6 +2,7 @@ package logger
 
 import "strings"
 
+
 // Supported log formats for SQL Server
 type LogFormat int
 
@@ -69,12 +70,8 @@ func (d *LogFormatDetector) DetectFormat(sample string) LogFormat {
 
 func containsAny(text string, patterns []string) bool {
 	for _, pattern := range patterns {
-		if len(text) >= len(pattern) {
-			for i := 0; i <= len(text)-len(pattern); i++ {
-				if text[i:i+len(pattern)] == pattern {
-					return true
-				}
-			}
+		if strings.Contains(text, pattern) {
+			return true
 		}
 	}
 	return false

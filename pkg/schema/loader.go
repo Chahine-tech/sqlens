@@ -22,172 +22,102 @@ func NewSchemaLoader() *SchemaLoader {
 	}
 }
 
-// LoadFromJSON loads a schema from JSON
-func (sl *SchemaLoader) LoadFromJSON(data []byte) (*Schema, error) {
-	var schemaData struct {
-		Name   string `json:"name"`
-		Tables []struct {
-			Name    string `json:"name"`
-			Schema  string `json:"schema,omitempty"`
-			Columns []struct {
-				Name         string      `json:"name"`
-				Type         string      `json:"type"`
-				Length       int         `json:"length,omitempty"`
-				Precision    int         `json:"precision,omitempty"`
-				Scale        int         `json:"scale,omitempty"`
-				Nullable     bool        `json:"nullable,omitempty"`
-				PrimaryKey   bool        `json:"primary_key,omitempty"`
-				Unique       bool        `json:"unique,omitempty"`
-				ForeignKey   bool        `json:"foreign_key,omitempty"`
-				FKTable      string      `json:"fk_table,omitempty"`
-				FKColumn     string      `json:"fk_column,omitempty"`
-				DefaultValue interface{} `json:"default,omitempty"`
-			} `json:"columns"`
-			Indexes []struct {
-				Name     string   `json:"name"`
-				Columns  []string `json:"columns"`
-				IsUnique bool     `json:"unique,omitempty"`
-			} `json:"indexes,omitempty"`
-		} `json:"tables"`
-	}
+// schemaData is a shared intermediate representation for JSON and YAML loading.
+// Both tag sets are present so a single struct works for both unmarshal calls.
+type schemaData struct {
+	Name   string      `json:"name"   yaml:"name"`
+	Tables []tableData `json:"tables" yaml:"tables"`
+}
 
-	if err := json.Unmarshal(data, &schemaData); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON schema: %w", err)
-	}
+type tableData struct {
+	Name    string        `json:"name"           yaml:"name"`
+	Schema  string        `json:"schema,omitempty" yaml:"schema,omitempty"`
+	Columns []columnData  `json:"columns"        yaml:"columns"`
+	Indexes []indexData   `json:"indexes,omitempty" yaml:"indexes,omitempty"`
+}
 
-	schema := NewSchema(schemaData.Name)
+type columnData struct {
+	Name         string      `json:"name"                yaml:"name"`
+	Type         string      `json:"type"                yaml:"type"`
+	Length       int         `json:"length,omitempty"    yaml:"length,omitempty"`
+	Precision    int         `json:"precision,omitempty" yaml:"precision,omitempty"`
+	Scale        int         `json:"scale,omitempty"     yaml:"scale,omitempty"`
+	Nullable     bool        `json:"nullable,omitempty"  yaml:"nullable,omitempty"`
+	PrimaryKey   bool        `json:"primary_key,omitempty" yaml:"primary_key,omitempty"`
+	Unique       bool        `json:"unique,omitempty"    yaml:"unique,omitempty"`
+	ForeignKey   bool        `json:"foreign_key,omitempty" yaml:"foreign_key,omitempty"`
+	FKTable      string      `json:"fk_table,omitempty"  yaml:"fk_table,omitempty"`
+	FKColumn     string      `json:"fk_column,omitempty" yaml:"fk_column,omitempty"`
+	DefaultValue interface{} `json:"default,omitempty"   yaml:"default,omitempty"`
+}
 
-	// Parse tables
-	for _, tableData := range schemaData.Tables {
-		table := NewTable(tableData.Name)
-		table.Schema = tableData.Schema
+type indexData struct {
+	Name     string   `json:"name"           yaml:"name"`
+	Columns  []string `json:"columns"        yaml:"columns"`
+	IsUnique bool     `json:"unique,omitempty" yaml:"unique,omitempty"`
+}
 
-		// Parse columns
-		for _, colData := range tableData.Columns {
+// buildSchema constructs a *Schema from the shared intermediate representation.
+func buildSchema(data schemaData) *Schema {
+	s := NewSchema(data.Name)
+	for _, td := range data.Tables {
+		table := NewTable(td.Name)
+		table.Schema = td.Schema
+
+		for _, cd := range td.Columns {
 			col := &Column{
-				Name:         colData.Name,
-				IsPrimaryKey: colData.PrimaryKey,
-				IsUnique:     colData.Unique,
-				IsForeignKey: colData.ForeignKey,
-				DefaultValue: colData.DefaultValue,
+				Name:         cd.Name,
+				IsPrimaryKey: cd.PrimaryKey,
+				IsUnique:     cd.Unique,
+				IsForeignKey: cd.ForeignKey,
+				DefaultValue: cd.DefaultValue,
 				DataType: &DataType{
-					Name:      strings.ToUpper(colData.Type),
-					Length:    colData.Length,
-					Precision: colData.Precision,
-					Scale:     colData.Scale,
-					Nullable:  colData.Nullable,
+					Name:      strings.ToUpper(cd.Type),
+					Length:    cd.Length,
+					Precision: cd.Precision,
+					Scale:     cd.Scale,
+					Nullable:  cd.Nullable,
 				},
 			}
-
-			if colData.ForeignKey && colData.FKTable != "" {
+			if cd.ForeignKey && cd.FKTable != "" {
 				col.ForeignKey = &ForeignKeyRef{
-					Table:  colData.FKTable,
-					Column: colData.FKColumn,
+					Table:  cd.FKTable,
+					Column: cd.FKColumn,
 				}
 			}
-
 			table.AddColumn(col)
 		}
 
-		// Parse indexes
-		for _, idxData := range tableData.Indexes {
-			idx := &Index{
-				Name:     idxData.Name,
-				Table:    tableData.Name,
-				Columns:  idxData.Columns,
-				IsUnique: idxData.IsUnique,
-			}
-			table.AddIndex(idx)
+		for _, id := range td.Indexes {
+			table.AddIndex(&Index{
+				Name:     id.Name,
+				Table:    td.Name,
+				Columns:  id.Columns,
+				IsUnique: id.IsUnique,
+			})
 		}
 
-		schema.AddTable(table)
+		s.AddTable(table)
 	}
+	return s
+}
 
-	return schema, nil
+// LoadFromJSON loads a schema from JSON
+func (sl *SchemaLoader) LoadFromJSON(data []byte) (*Schema, error) {
+	var sd schemaData
+	if err := json.Unmarshal(data, &sd); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON schema: %w", err)
+	}
+	return buildSchema(sd), nil
 }
 
 // LoadFromYAML loads a schema from YAML
 func (sl *SchemaLoader) LoadFromYAML(data []byte) (*Schema, error) {
-	var schemaData struct {
-		Name   string `yaml:"name"`
-		Tables []struct {
-			Name    string `yaml:"name"`
-			Schema  string `yaml:"schema,omitempty"`
-			Columns []struct {
-				Name         string      `yaml:"name"`
-				Type         string      `yaml:"type"`
-				Length       int         `yaml:"length,omitempty"`
-				Precision    int         `yaml:"precision,omitempty"`
-				Scale        int         `yaml:"scale,omitempty"`
-				Nullable     bool        `yaml:"nullable,omitempty"`
-				PrimaryKey   bool        `yaml:"primary_key,omitempty"`
-				Unique       bool        `yaml:"unique,omitempty"`
-				ForeignKey   bool        `yaml:"foreign_key,omitempty"`
-				FKTable      string      `yaml:"fk_table,omitempty"`
-				FKColumn     string      `yaml:"fk_column,omitempty"`
-				DefaultValue interface{} `yaml:"default,omitempty"`
-			} `yaml:"columns"`
-			Indexes []struct {
-				Name     string   `yaml:"name"`
-				Columns  []string `yaml:"columns"`
-				IsUnique bool     `yaml:"unique,omitempty"`
-			} `yaml:"indexes,omitempty"`
-		} `yaml:"tables"`
-	}
-
-	if err := yaml.Unmarshal(data, &schemaData); err != nil {
+	var sd schemaData
+	if err := yaml.Unmarshal(data, &sd); err != nil {
 		return nil, fmt.Errorf("failed to parse YAML schema: %w", err)
 	}
-
-	schema := NewSchema(schemaData.Name)
-
-	// Parse tables
-	for _, tableData := range schemaData.Tables {
-		table := NewTable(tableData.Name)
-		table.Schema = tableData.Schema
-
-		// Parse columns
-		for _, colData := range tableData.Columns {
-			col := &Column{
-				Name:         colData.Name,
-				IsPrimaryKey: colData.PrimaryKey,
-				IsUnique:     colData.Unique,
-				IsForeignKey: colData.ForeignKey,
-				DefaultValue: colData.DefaultValue,
-				DataType: &DataType{
-					Name:      strings.ToUpper(colData.Type),
-					Length:    colData.Length,
-					Precision: colData.Precision,
-					Scale:     colData.Scale,
-					Nullable:  colData.Nullable,
-				},
-			}
-
-			if colData.ForeignKey && colData.FKTable != "" {
-				col.ForeignKey = &ForeignKeyRef{
-					Table:  colData.FKTable,
-					Column: colData.FKColumn,
-				}
-			}
-
-			table.AddColumn(col)
-		}
-
-		// Parse indexes
-		for _, idxData := range tableData.Indexes {
-			idx := &Index{
-				Name:     idxData.Name,
-				Table:    tableData.Name,
-				Columns:  idxData.Columns,
-				IsUnique: idxData.IsUnique,
-			}
-			table.AddIndex(idx)
-		}
-
-		schema.AddTable(table)
-	}
-
-	return schema, nil
+	return buildSchema(sd), nil
 }
 
 // LoadFromFile loads a schema from a file (auto-detects JSON/YAML)
@@ -203,19 +133,18 @@ func (sl *SchemaLoader) LoadFromFile(filename string) (*Schema, error) {
 		return nil, fmt.Errorf("failed to read schema file: %w", err)
 	}
 
-	// Auto-detect format based on file extension
-	if strings.HasSuffix(strings.ToLower(filename), ".json") {
+	lower := strings.ToLower(filename)
+	switch {
+	case strings.HasSuffix(lower, ".json"):
 		return sl.LoadFromJSON(data)
-	} else if strings.HasSuffix(strings.ToLower(filename), ".yaml") || strings.HasSuffix(strings.ToLower(filename), ".yml") {
+	case strings.HasSuffix(lower, ".yaml"), strings.HasSuffix(lower, ".yml"):
 		return sl.LoadFromYAML(data)
 	}
 
 	// Try JSON first, then YAML
-	schema, err := sl.LoadFromJSON(data)
-	if err == nil {
-		return schema, nil
+	if s, err := sl.LoadFromJSON(data); err == nil {
+		return s, nil
 	}
-
 	return sl.LoadFromYAML(data)
 }
 

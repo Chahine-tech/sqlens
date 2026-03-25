@@ -50,15 +50,16 @@ func (d *SQLiteDialect) GetDataTypes() []string {
 	return append(CommonDataTypes, sqlite...)
 }
 
-func (d *SQLiteDialect) IsReservedWord(word string) bool {
-	keywords := d.GetKeywords()
-	upper := strings.ToUpper(word)
-	for _, keyword := range keywords {
-		if keyword == upper {
-			return true
-		}
+var sqliteReserved = func() map[string]bool {
+	m := make(map[string]bool)
+	for _, k := range (&SQLiteDialect{}).GetKeywords() {
+		m[k] = true
 	}
-	return false
+	return m
+}()
+
+func (d *SQLiteDialect) IsReservedWord(word string) bool {
+	return sqliteReserved[strings.ToUpper(word)]
 }
 
 func (d *SQLiteDialect) GetLimitSyntax() LimitSyntax {
