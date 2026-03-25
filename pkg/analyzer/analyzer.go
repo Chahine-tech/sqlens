@@ -55,6 +55,10 @@ func (a *Analyzer) Analyze(stmt parser.Statement) QueryAnalysis {
 	a.analysis.Joins = a.analysis.Joins[:0]
 	a.analysis.Conditions = a.analysis.Conditions[:0]
 
+	if stmt == nil {
+		return a.analysis
+	}
+
 	switch s := stmt.(type) {
 	case *parser.SelectStatement:
 		a.analyzeSelectStatement(s)
@@ -219,6 +223,9 @@ func (a *Analyzer) extractCondition(expr *parser.BinaryExpression, _ string) {
 }
 
 func (a *Analyzer) analyzeInsertStatement(stmt *parser.InsertStatement) {
+	if stmt == nil {
+		return
+	}
 	a.analysis.Tables = append(a.analysis.Tables, TableInfo{
 		Schema: stmt.Table.Schema,
 		Name:   stmt.Table.Name,

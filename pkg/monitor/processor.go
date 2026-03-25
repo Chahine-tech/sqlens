@@ -114,7 +114,7 @@ func (p *LogProcessor) processLine(line string) {
 	}
 
 	// Analyze the query if parsing succeeded
-	if stmt != nil {
+	if err == nil {
 		analysis := p.analyzer.Analyze(stmt)
 		pq.Analysis = &analysis
 	}
