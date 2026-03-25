@@ -417,13 +417,13 @@ func parsePostgreSQLNode(data map[string]interface{}) *PlanNode {
 // sqlServerXMLPlan is the top-level XML structure for SQL Server execution plans.
 // SQL Server EXPLAIN FOR XML produces a ShowPlanXML document.
 type sqlServerXMLPlan struct {
-	XMLName    xml.Name              `xml:"ShowPlanXML"`
-	Statements []sqlServerXMLStmt    `xml:"BatchSequence>Batch>Statements>StmtSimple"`
+	XMLName    xml.Name           `xml:"ShowPlanXML"`
+	Statements []sqlServerXMLStmt `xml:"BatchSequence>Batch>Statements>StmtSimple"`
 }
 
 type sqlServerXMLStmt struct {
-	StatementCost float64           `xml:"StatementSubTreeCost,attr"`
-	StatementRows float64           `xml:"StatementEstRows,attr"`
+	StatementCost float64            `xml:"StatementSubTreeCost,attr"`
+	StatementRows float64            `xml:"StatementEstRows,attr"`
 	QueryPlan     sqlServerQueryPlan `xml:"QueryPlan"`
 }
 
@@ -432,13 +432,13 @@ type sqlServerQueryPlan struct {
 }
 
 type sqlServerRelOp struct {
-	Operation      string             `xml:"PhysicalOp,attr"`
-	LogicalOp      string             `xml:"LogicalOp,attr"`
-	EstimatedRows  float64            `xml:"EstimateRows,attr"`
-	EstimatedCost  float64            `xml:"EstimatedTotalSubtreeCost,attr"`
-	Children       []sqlServerRelOp   `xml:"RelOp"`
-	IndexScan      *sqlServerIndex    `xml:"IndexScan"`
-	NestedLoops    *sqlServerNested   `xml:"NestedLoops"`
+	Operation     string           `xml:"PhysicalOp,attr"`
+	LogicalOp     string           `xml:"LogicalOp,attr"`
+	EstimatedRows float64          `xml:"EstimateRows,attr"`
+	EstimatedCost float64          `xml:"EstimatedTotalSubtreeCost,attr"`
+	Children      []sqlServerRelOp `xml:"RelOp"`
+	IndexScan     *sqlServerIndex  `xml:"IndexScan"`
+	NestedLoops   *sqlServerNested `xml:"NestedLoops"`
 }
 
 type sqlServerIndex struct {
