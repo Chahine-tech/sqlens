@@ -81,7 +81,7 @@ make fmt         # format code
 make all         # deps, fmt, lint, test, build
 ```
 
-See [CLAUDE.md](CLAUDE.md) for contributor notes and [DIALECT_SUPPORT.md](DIALECT_SUPPORT.md) for dialect-specific details.
+See [EXAMPLES.md](EXAMPLES.md) for usage examples and [PERFORMANCE.md](PERFORMANCE.md) for benchmark details.
 
 ## License
 
